@@ -54,6 +54,8 @@ def on_privnotice(cli, event):
             gotToTheBank(cli, event)
     elif event.arguments[0].startswith("You are ready to go."):
         cli.privmsg("Lamb3", "#exp")
+    elif event.arguments[0].startswith("You meet"):
+        cli.privmsg("Lamb3", config['sayToFolks'])
     
     
 def on_privmsg(cli, event):

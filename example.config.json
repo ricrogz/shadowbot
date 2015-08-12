@@ -2,5 +2,7 @@
     "server": "irc.gizmore.org",
     "port": 6668,
     "nick": "Polsaker",
-    "password": "foo"
+    "password": "foo",
+    "sayToFolks": "#say temple"
+
 }
