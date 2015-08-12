@@ -31,6 +31,9 @@ def gotoBank(cli, event):
 def gotToTheHotel(cli, event):
     cli.privmsg("Lamb3", "#sleep")
 
+def say(cli, msg):
+    cli.privmsg("Lamb3", "[Mr. Roboto] {0}".format(msg))
+
 def gotToTheBank(cli, event):
     for _ in range(30):
         cli.privmsg("Lamb3", "#push 3")
@@ -62,6 +65,7 @@ def on_privmsg(cli, event):
         for jug in tx:
             totes = (float(jug[1])/float(jug[2]))*100
             if totes < 40:
+                say(cli, "Yendo al hotel por que {0} está muriendose".format(jug[0]))
                 # Si alguien en la party tiene menos del 40% del HP, volvemos al hotel
                 gotoHotel(cli, event)
                 return
@@ -73,6 +77,7 @@ def on_privmsg(cli, event):
         for jug in tx:
             totes = (float(jug[1])/float(jug[2]))*100
             if totes > 100:
+                say(cli, "Yendo al banco por que {0} está muy gordo/a".format(jug[0]))
                 # Si alguien es muy gordo, vamos al banco
                 gotoBank(cli, event)
                 return
