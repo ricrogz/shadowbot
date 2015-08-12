@@ -38,8 +38,8 @@ def gotToTheBank(cli, event):
     for _ in range(30):
         cli.privmsg("Lamb3", "#push 3")
 
-HP_REGEX = re.compile("\002\d+\002-(.+?)\((.+?)\/(.+?)\)")
-WE_REGEX = re.compile("\002\d+\002-(.+?)\((.+?)kg\/(.+?)kg\)")
+HP_REGEX = re.compile("\d+-(.+?)\((.+?)\/(.+?)\)")
+WE_REGEX = re.compile("\d+-(.+?)\((.+?)kg\/(.+?)kg\)")
 
 def on_privnotice(cli, event):
     if event.target != "Lamb3":
@@ -63,7 +63,7 @@ def on_privmsg(cli, event):
         return
     
     if event.arguments[0].startswith("Your parties HP"):
-        tx = HP_REGEX.findall(event.arguments[0].replace('Your parties HP: ',''))
+        tx = HP_REGEX.findall(event.arguments[0].replace('Your parties HP: ','').replace('\002', ''))
         for jug in tx:
             totes = (float(jug[1])/float(jug[2]))*100
             if totes < 40:
@@ -75,7 +75,7 @@ def on_privmsg(cli, event):
         # Si todos están enteros, exploramos.
         cli.privmsg("Lamb3", "#explore")
     if event.arguments[0].startswith("Your party carries"):
-        tx = WE_REGEX.findall(event.arguments[0].replace('Your party carries',''))
+        tx = WE_REGEX.findall(event.arguments[0].replace('Your party carries','').replace('\002', ''))
         for jug in tx:
             totes = (float(jug[1])/float(jug[2]))*100
             if totes > 100:
