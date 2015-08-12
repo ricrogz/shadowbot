@@ -76,7 +76,7 @@ def on_privmsg(cli, event):
                 # Si alguien es muy gordo, vamos al banco
                 gotoBank(cli, event)
                 return
-            cli.privmsg("Lamb3", "#hp")
+        cli.privmsg("Lamb3", "#hp")
     elif event.arguments[0].startswith("You are already in"):
         if "Hotel" in event.arguments[0]:
             gotToTheHotel(cli, event)
