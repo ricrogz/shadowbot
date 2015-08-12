@@ -36,7 +36,7 @@ def gotToTheBank(cli, event):
         cli.privmsg("Lamb3", "#push 3")
 
 HP_REGEX = re.compile("\002\d+\002-(.+?)\((.+?)\/(.+?)\)")
-WE_REGEX = re.compile(".+kg: \002\d+\002-(.+?)\((.+?)kg\/(.+?)kg\)")
+WE_REGEX = re.compile("\002\d+\002-(.+?)\((.+?)kg\/(.+?)kg\)")
 
 def on_privnotice(cli, event):
     if event.target != "Lamb3":
@@ -69,10 +69,10 @@ def on_privmsg(cli, event):
         # Si todos están enteros, exploramos.
         cli.privmsg("Lamb3", "#explore")
     if event.arguments[0].startswith("Your party carries"):
-        tx = HP_REGEX.findall(event.arguments[0].replace('Your party carries',''))
+        tx = WE_REGEX.findall(event.arguments[0].replace('Your party carries',''))
         for jug in tx:
             totes = (float(jug[1])/float(jug[2]))*100
-            if totes < 100:
+            if totes > 100:
                 # Si alguien es muy gordo, vamos al banco
                 gotoBank(cli, event)
                 return
