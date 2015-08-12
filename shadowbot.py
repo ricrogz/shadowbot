@@ -1,6 +1,6 @@
 import irc.client as client
 import logging
-import http.server
+import json
 import time
 import _thread
 import re
@@ -8,13 +8,16 @@ import re
 logging.getLogger(None).setLevel(logging.DEBUG)
 logging.basicConfig()
 
-hira = client.IRCClient('hira')
-freenode = client.IRCClient('freenode')
+config = json.load(open('config.json'))
 
-hira.configure(server = "irc.gizmore.org", port=6668,
-                           nick = "Polsaker",
-                           ident = "polsaker",
+hira = client.IRCClient('client')
+
+hira.configure(server = config['server'], port=config['port'],
+                           nick = config['nick'],
+                           ident = config['nick'],
                            gecos = "Butts.")
+
+hira.send("PASS " + config['password'])
 
 def on_hWelcome(cli, event):
     cli.privmsg("Lamb3", "#hp")
@@ -66,6 +69,7 @@ hira.connect()
 
 while True:
     if hira.connected is False:
+        hira.send("PASS " + config['password'])
         hira.connect()
         
     time.sleep(1)
