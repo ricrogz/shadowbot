@@ -16,18 +16,9 @@ hira.configure(server = "irc.gizmore.org", port=6668,
                            ident = "polsaker",
                            gecos = "Butts.")
 
-freenode.configure(server = "irc.freenode.net",
-                           nick = "PolsakerClanBot",
-                           ident = "PolsakerClanBot",
-                           gecos = "BUTTS!")
-
 def on_hWelcome(cli, event):
-    #cli.privmsg("NickServ", "ID ivnxfonfymvr")
     cli.privmsg("Lamb3", "#hp")
     
-def on_hFelcome(cli, event):
-    cli.join("#cobot,##prodigygirl")
-
 def gotoHotel(cli, event):
     cli.privmsg("Lamb3", "#goto hotel")
 
@@ -71,16 +62,10 @@ def on_privmsg(cli, event):
 hira.addhandler("welcome", on_hWelcome)
 hira.addhandler("privmsg", on_privmsg)
 hira.addhandler("privnotice", on_privnotice)
-freenode.addhandler("welcome", on_hFelcome)
 hira.connect()
-#freenode.connect()
 
 while True:
     if hira.connected is False:
         hira.connect()
-    
-    if freenode.connected is False:
-        pass
-        #freenode.connect()
         
     time.sleep(1)
