@@ -37,6 +37,8 @@ def say(cli, msg):
 def gotToTheBank(cli, event):
     for _ in range(30):
         cli.privmsg("Lamb3", "#push 3")
+    time.sleep(30)
+    cli.privmsg("Lamb3", "#we")
 
 HP_REGEX = re.compile("\d+-(.+?)\((.+?)\/(.+?)\)")
 WE_REGEX = re.compile("\d+-(.+?)\((.+?)kg\/(.+?)kg\)")
