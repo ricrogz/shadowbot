@@ -25,8 +25,10 @@ def on_hWelcome(cli, event):
 def gotoHotel(cli, event):
     if config['teleport']:
         cli.privmsg("Lamb3", "#cast teleport hotel")
+        cli.privmsg("Lamb3", "#enter")
     else:
         cli.privmsg("Lamb3", "#goto hotel")
+        cli.privmsg("Lamb3", "#enter")
 
 def gotoBank(cli, event):
     if config['teleport']:
