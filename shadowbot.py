@@ -23,16 +23,22 @@ def on_hWelcome(cli, event):
     cli.privmsg("Lamb3", "#we")
     
 def gotoHotel(cli, event):
-    cli.privmsg("Lamb3", "#goto hotel")
+    if config['teleport']:
+        cli.privmsg("Lamb3", "#cast teleport hotel")
+    else:
+        cli.privmsg("Lamb3", "#goto hotel")
 
 def gotoBank(cli, event):
-    cli.privmsg("Lamb3", "#goto bank")
+    if config['teleport']:
+        cli.privmsg("Lamb3", "#cast teleport bank")
+    else:
+        cli.privmsg("Lamb3", "#goto bank")
 
 def gotToTheHotel(cli, event):
     cli.privmsg("Lamb3", "#sleep")
 
 def say(cli, msg):
-    cli.privmsg("Lamb3", "[Mr. Roboto] {0}".format(msg))
+    cli.privmsg("Lamb3", "#say [Mr. Roboto] {0}".format(msg))
 
 def gotToTheBank(cli, event):
     for _ in range(30):

@@ -3,6 +3,6 @@
     "port": 6668,
     "nick": "Polsaker",
     "password": "foo",
-    "sayToFolks": "#say temple"
-
+    "sayToFolks": "#bye",
+    "teleport": true
 }
