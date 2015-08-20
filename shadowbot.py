@@ -28,13 +28,14 @@ def gotoHotel(cli, event):
         cli.privmsg("Lamb3", "#enter")
     else:
         cli.privmsg("Lamb3", "#goto hotel")
-        cli.privmsg("Lamb3", "#enter")
 
 def gotoBank(cli, event):
     if config['teleport']:
         cli.privmsg("Lamb3", "#cast teleport bank")
+        cli.privmsg("Lamb3", "#enter")
     else:
         cli.privmsg("Lamb3", "#goto bank")
+
 
 def gotToTheHotel(cli, event):
     cli.privmsg("Lamb3", "#sleep")
