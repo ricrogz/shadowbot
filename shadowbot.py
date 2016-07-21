@@ -79,7 +79,7 @@ def on_privmsg(cli, event):
                     return
 
             # Si todos están enteros, exploramos.
-            goto_explore(cli, event)
+            goto_mission(cli, event)
 
         elif msg.startswith("Your party carries"):
             for jug in WE_REGEX.findall(msg):
@@ -151,7 +151,7 @@ def goto_destination(destination, cli, _, forced=False):
     return False
 
 
-def goto_explore(cli, _):
+def goto_mission(cli, _):
     global task
     if task is None:
         cli.privmsg(config['gamebot'], "#explore")
@@ -213,7 +213,7 @@ def fight_next(cli, _):
         enemy = enemies.pop(0)
         cli.privmsg(config['gamebot'], "#attack {0}".format(enemy[3]))
         cli.privmsg(config['gamebot'], "#use scanner {0}".format(enemy[3]))
-    elif task is None:
+    else:
         cli.privmsg(config['gamebot'], "#we")
 
 
