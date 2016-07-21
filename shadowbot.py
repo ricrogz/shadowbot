@@ -311,11 +311,11 @@ def process_user_input(cli, cmdline, priv=False):
 
 
 def connection_check():
-    while True:
-        if QUIT_SIGNAL:
-            break
+    while not QUIT_SIGNAL:
         if not hira.connected:
             hira.connect()
+            hira.send("away I'm a bot, I won't answer :)")
+
         time.sleep(1)
 
 
