@@ -48,6 +48,7 @@ def on_privnotice(cli, event):
 
 
 def on_privmsg(cli, event):
+    global task
 
     msg = event.arguments[0].replace('\x02', '')
 
@@ -101,6 +102,11 @@ def on_privmsg(cli, event):
         elif msg.startswith("You meet"):
             cli.privmsg(config['gamebot'], config['say_to_folks'])
         elif msg.startswith("You are already in") or msg.startswith("You enter the"):
+
+            # Reset task
+            if task in msg.lower():
+                task = None
+
             if "Hotel" in msg:
                 got_to_hotel(cli, event)
             elif "Bank" in msg:
@@ -162,14 +168,10 @@ def goto_mission(cli, _):
 
 
 def got_to_hotel(cli, _):
-    global task
-    task = None
     cli.privmsg(config['gamebot'], "#sleep")
 
 
 def got_to_bank(cli, _):
-    global task
-    task = None
     push_items(cli)
     cli.privmsg(config['gamebot'], "#we")
 
