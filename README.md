@@ -1,5 +1,7 @@
 # ShadowBot 2.0
 
+An autoplayer bot for the IRC game 'ShadowLamb' (http://www.wechall.net/challenge/lamb/shadowlamb1/index.php).
+
 Project forked from https://github.com/Polsaker/shadowbot, and merged to my own bot, which was just an Xchat plugin. I find this implementation better, as it does not require a 'base' program (just Python 3), and neither an X server. I ported back several features from my plugin:
 
 - Autofight: enemies will be attacked and scanned in order of increasing ¿armouring?.
