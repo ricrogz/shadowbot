@@ -22,7 +22,7 @@ class IRCClient:
         self.ident = self.nickname
         self.gecos = "-"
         self.ssl = False
-        self.msgdelay = 0.5 
+        self.msgdelay = 0.5
         self.reconnects = 10
         self.reconncount = 0
         self.localaddress = ''
@@ -36,8 +36,8 @@ class IRCClient:
         self.queue = []
         self.channels = {}
         self.users = {}
-        
-        self.logger = logging.getLogger('bearded-potato-' + sid)
+
+        self.logger = logging.getLogger(sid) # ('bearded-potato-' + sid)
         self.ibuffer = LineBuffer()
         self.features = features.FeatureSet()
         self.lastping = time.time()
@@ -69,11 +69,11 @@ class IRCClient:
         self.ssl = ssl
         self.msgdelay = msgdelay
         self.imayreconnect = True
-        
+
     def connect(self):
         """ Connects to the IRC server. """
         self.logger.info("Connecting to {0}:{1}".format(self.server, self.port))
-        
+
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.server, self.port))
@@ -103,7 +103,7 @@ class IRCClient:
             time.sleep(60)
             if (time.time() - self.lastping) > 300:
                 self.disconnect("", False) # We're dead
-            
+
     def _process_forever(self):
         while self.connected:
             self._process_data()
@@ -232,7 +232,7 @@ class IRCClient:
                 line = line.decode('latin1')
             if not line:
                 continue
-            self.logger.debug(line)
+            self.logger.info(line.replace("\x02", "█"))
             self._processline(line)
 
     def _process_queue(self):
@@ -268,7 +268,7 @@ class IRCClient:
         self.handlers[action].append({'blocking': blocking,
                                       'action': action,
                                       'callback': callback})
-        
+
         seen = set()
         new_l = []
         for d in self.handlers[action]:
@@ -278,7 +278,14 @@ class IRCClient:
                 new_l.append(d)
 
         self.handlers[action] = new_l
-    
+
+    def removehandler(self, action, callback, blocking=False):
+        if action in self.handlers:
+            for ihandler in range(len(self.handlers[action])):
+                hnd = self.handlers[action][ihandler]
+                if hnd['action'] == action and hnd['callback'] == callback and hnd['blocking'] == blocking:
+                    self.handlers[action]
+
     def send(self, raw, urgent=False):
         if urgent is False:
             self.queue.append(raw)
@@ -332,40 +339,38 @@ class IRCClient:
 
     def join(self, channels):
         self.send("JOIN {0}".format(channels))
-    
+
     def part(self, channels, message=""):
         self.send("PART {0} :{1}".format(channels, message))
 
     def who(self, target="", op=""):
         self.send("WHO%s%s" % (target and (" " + target), op and (" " + op)))
-    
+
     def mode(self, target, modes):
         self.send("MODE {0} {1}".format(target, modes))
-    
+
     def privmsg(self, target, message):
         self.lastping = time.time()
-        if "\n" in message:
-            m = message.split("\n")
-            for l in m:
-                self.send("PRIVMSG {0} :{1}".format(target, l))
-        else:
-            self.send("PRIVMSG {0} :{1}".format(target, message))
-    
+        m = message.split("\n")
+        for l in m:
+            self.send("PRIVMSG {0} :{1}".format(target, l))
+            self.logger.info("PRIVMSG {0} :{1}".format(target, l))
+
     def notice(self, target, modes):
         self.send("NOTICE {0} :{1}".format(target, modes))
 
     def whois(self, targets):
         self.send("WHOIS " + targets)
-        
+
     def kick(self, channel, target, reason=""):
         self.send("KICK {0} {1} :{2}".format(channel, target, reason))
-    
+
     def multimode(self, channel, mode, users):
         if type(users) == str:
             self.mode(channel, mode + " " + users)
         elif type(users) == list:
             f1 = ""
-            
+
             while users != []:
                 if len(users[:self.features.modes]) == self.features.modes:
                     self.mode(channel, "{0}{1} {2}".format(mode[0], mode[1] * self.features.modes, " ".join(users[:self.features.modes])))
@@ -375,13 +380,13 @@ class IRCClient:
                     users = []
         else:
             raise
-    
+
     def voice(self, channel, users):
         self.multimode(channel, "+v", users)
-        
+
     def devoice(self, channel, users):
         self.multimode(channel, "-v", users)
-        
+
     # Internal handlers
 
     def _on_join(self, this, event):
@@ -394,7 +399,7 @@ class IRCClient:
                 account = event.arguments[0]
             except:
                 account = None
-                
+
             self.channels[event.target].users[event.source.nick.lower()] = User(
                 event.source.nick, event.source.user, event.source.host,
                 "", "", account)
@@ -479,13 +484,13 @@ class IRCClient:
                 else:
                     self.channels[event.target].users[event.arguments[number].lower()] \
                     .op = True
-    
+
     def _on_part(self, myself, event):
         if event.source.nick == self.nickname:
             del self.channels[event.target]
         else:
             del self.channels[event.target].users[event.source.nick.lower()]
-        
+
     def _on_quit(self, myself, event):
         #del self.users[event.source.nick]
         for i in self.channels:
@@ -494,7 +499,7 @@ class IRCClient:
                 self._fire_event(Event("cquit", event.source, i, event.arguments))
             except:
                 pass
-    
+
     def _on_nick(self, myself, event):
         for i in self.channels:
             self.channels[i].users[event.target.lower()] = self.channels[i].users[event.source.nick.lower()]
@@ -504,11 +509,11 @@ class IRCClient:
     def _on_kick(self, myself, event):
         if event.arguments[0] != self.nickname:
             del self.channels[event.target].users[event.arguments[0].lower()]
-    
+
     def _on_banlist(self, myself, event):
         ban = Ban(event.arguments[1], event.arguments[3])
         self.channels[event.arguments[0]].bans.append(ban)
-    
+
     def _on_quietlist(self, myself, event):
         ban = Ban(event.arguments[1], event.arguments[3])
         self.channels[event.arguments[0]].quiets.append(ban)
@@ -531,7 +536,7 @@ class Channel(object):
         #    client.who(channelname, "%tcuhnfar,08")
         #except:
         #    client.who(channelname)
-        
+
         #client.mode(channelname, "b")
         #if "q" in client.features.chanmodes[0]:
         #    client.mode(channelname, "q")
@@ -773,7 +778,7 @@ class Ban:
     def __init__(self, mask, pts):
         self.ban = mask
         self.ts = pts
-    
+
     @property
     def nick(self):
         return self.ban.split("!")[0]
@@ -789,7 +794,7 @@ class Ban:
     @property
     def user(self):
         return self.ban.userhost.split("@")[0]
-        
+
     def banmatches(self, nickmask):
         ban = self.ban.replace("*", ".*").replace("?", ".?")
         banregex = re.compile(ban)

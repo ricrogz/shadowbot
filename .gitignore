@@ -1,2 +1,6 @@
+.svn
+.idea
 *.pyc
 config.json
+hispano.config.json
+shadowlamb.config.json

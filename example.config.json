@@ -1,8 +1,15 @@
 {
-    "server": "irc.gizmore.org",
-    "port": 6668,
-    "nick": "Polsaker",
-    "password": "foo",
-    "sayToFolks": "#bye",
-    "teleport": true
+    "admin": "shepherd0",
+    "autoplay": true,
+    "gamebot": "Lamb3",
+    "teleport": false,
+    "port": 6667,
+    "hp_sleep": 25,
+    "nickserv": "NickServ",
+    "password": "super_secret!",
+    "we_bank": 120,
+    "bank_store_index": 6,
+    "say_to_folks": "#bye",
+    "nick": "blacksheep_",
+    "server": "irc.wechall.net"
 }
