@@ -72,6 +72,7 @@ numerics = {
         "304": "text",
         "305": "unaway",
         "306": "nowaway",
+        "307": "registerednick",
         "311": "whoisuser",
         "312": "whoisserver",
         "313": "whoisoperator",

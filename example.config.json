@@ -5,6 +5,8 @@
     "teleport": false,
     "port": 6667,
     "hp_sleep": 25,
+    "msg_away": "I'm a bot, I won't talk back to you :)",
+    "msg_quit": "I'll be back",
     "nickserv": "NickServ",
     "password": "super_secret!",
     "we_bank": 120,

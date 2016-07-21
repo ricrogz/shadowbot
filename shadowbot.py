@@ -19,6 +19,94 @@ enemies = []
 task = None
 
 
+def on_whoisuser_reply(cli, event):
+    if event.arguments[0] == config['nickserv'] and \
+            event.arguments[2].startswith("anope.irc.wechall.net"):
+        authlist.add(event.arguments[0])
+        check_auth(cli, event)
+
+
+def on_registerednick(cli, event):
+    if event.arguments[0] == config['gamebot'] and \
+            event.arguments[1].startswith("is a registered nick"):
+        authlist.add(event.arguments[0])
+        check_auth(cli, event)
+
+
+def on_serverconnected(cli, _):
+    cli.send('away :{0}'.format(config['msg_away']))
+
+
+def on_privnotice(cli, event):
+    if event.target.lower() == config['nickserv'].lower() and \
+       event.arguments[0].startswith("This nickname is registered and protected."):
+        cli.whois(config['nickserv'])
+        cli.whois(config['gamebot'])
+        return
+    elif event.target != config['gamebot']:
+        return
+
+
+def on_privmsg(cli, event):
+
+    msg = event.arguments[0].replace('\x02', '')
+
+    # Always autofight
+    if event.target == config['gamebot']:
+        if "You ENCOUNTER" in msg:
+            fight_start(cli, event)
+            return
+        elif " and killed them with " in msg:
+            fight_next(cli, event)
+            return
+    # Pass user commands to the processing function
+    elif event.target == config['admin']:
+        process_user_input(cli, msg, True)
+
+    # If autoplay is enabled and input comes from bot, process it
+    if config['autoplay'] and event.target == config['gamebot']:
+
+        if msg.startswith("Your parties HP"):
+            for jug in HP_REGEX.findall(msg):
+
+                # This one is absolute!
+                # totes = (float(jug[1])/float(jug[2]))*100
+
+                # Si alguien en la party tiene poco HP,
+                # y no hay ya un destino, volvemos al hotel
+                if float(jug[1]) < config['hp_sleep'] and goto_destination('hotel', cli, event):
+                    cli.privmsg(config['gamebot'], "Yendo al hotel por que {0} está muriendose".format(jug[0]))
+                    return
+
+            # Si todos están enteros, exploramos.
+            goto_explore(cli, event)
+
+        elif msg.startswith("Your party carries"):
+            for jug in WE_REGEX.findall(msg):
+                totes = (float(jug[1])/float(jug[2]))*100.
+
+                # Si alguien es muy gordo,
+                # y no hay ya un destino, vamos al banco
+                if totes > config['we_bank'] and goto_destination('bank', cli, event):
+                    cli.privmsg(config['gamebot'], "Yendo al banco por que {0} está muy gordo/a".format(jug[0]))
+                    return
+
+            # Si el peso está bien, comprobamos la salud
+            cli.privmsg(config['gamebot'], "#hp")
+
+        elif msg.endswith("but it seems you know every single corner of it."):
+            cli.privmsg(config['gamebot'], "#we")
+        elif msg.startswith("You are ready to go."):
+            cli.privmsg(config['gamebot'], "#we")
+        elif msg.startswith("You meet"):
+            cli.privmsg(config['gamebot'], config['say_to_folks'])
+        elif msg.startswith("You are already in") or msg.startswith("You enter the"):
+            if "Hotel" in msg:
+                got_to_hotel(cli, event)
+            elif "Bank" in msg:
+                got_to_bank(cli, event)
+
+
 def parse_config(cli, cfg, value, cast):
     try:
         config[cfg] = cast(value)
@@ -33,20 +121,6 @@ def split_cmdline(cmd):
     return (ret[0], ret[1:]) if len(ret) > 1 else (ret[0], [''])
 
 
-def on_whoisuser_reply(cli, event):
-    if event.arguments[0] == config['nickserv'] and \
-            event.arguments[2].startswith("anope.irc.wechall.net"):
-        authlist.add(event.arguments[0])
-        check_auth(cli, event)
-
-
-def on_307_reply(cli, event):
-    if event.arguments[0] == config['gamebot'] and \
-            event.arguments[1].startswith("is a registered nick"):
-        authlist.add(event.arguments[0])
-        check_auth(cli, event)
-
-
 def check_auth(cli, _):
 
     def make_auth():
@@ -55,7 +129,7 @@ def check_auth(cli, _):
 
     if config['gamebot'] in authlist and config['nickserv'] in authlist:
         hira.removehandler("whoisuser", on_whoisuser_reply)
-        hira.removehandler("307", on_307_reply)
+        hira.removehandler("registerednick", on_registerednick)
 
         hira.addhandler("privmsg", on_privmsg)
 
@@ -141,76 +215,6 @@ def fight_next(cli, _):
         cli.privmsg(config['gamebot'], "#use scanner {0}".format(enemy[3]))
     elif task is None:
         cli.privmsg(config['gamebot'], "#we")
-
-
-def on_privnotice(cli, event):
-    if event.target.lower() == config['nickserv'].lower() and \
-       event.arguments[0].startswith("This nickname is registered and protected."):
-        cli.whois(config['nickserv'])
-        cli.whois(config['gamebot'])
-        return
-    elif event.target != config['gamebot']:
-        return
-
-
-def on_privmsg(cli, event):
-
-    msg = event.arguments[0].replace('\x02', '')
-
-    # Always autofight
-    if event.target == config['gamebot']:
-        if "You ENCOUNTER" in msg:
-            fight_start(cli, event)
-            return
-        elif " and killed them with " in msg:
-            fight_next(cli, event)
-            return
-    # Pass user commands to the processing function
-    elif event.target == config['admin']:
-        process_user_input(cli, msg, True)
-
-    # If autoplay is enabled and input comes from bot, process it
-    if config['autoplay'] and event.target == config['gamebot']:
-
-        if msg.startswith("Your parties HP"):
-            for jug in HP_REGEX.findall(msg):
-
-                # This one is absolute!
-                # totes = (float(jug[1])/float(jug[2]))*100
-
-                # Si alguien en la party tiene poco HP,
-                # y no hay ya un destino, volvemos al hotel
-                if float(jug[1]) < config['hp_sleep'] and goto_destination('hotel', cli, event):
-                    cli.privmsg(config['gamebot'], "Yendo al hotel por que {0} está muriendose".format(jug[0]))
-                    return
-
-            # Si todos están enteros, exploramos.
-            goto_explore(cli, event)
-
-        elif msg.startswith("Your party carries"):
-            for jug in WE_REGEX.findall(msg):
-                totes = (float(jug[1])/float(jug[2]))*100.
-
-                # Si alguien es muy gordo,
-                # y no hay ya un destino, vamos al banco
-                if totes > config['we_bank'] and goto_destination('bank', cli, event):
-                    cli.privmsg(config['gamebot'], "Yendo al banco por que {0} está muy gordo/a".format(jug[0]))
-                    return
-
-            # Si el peso está bien, comprobamos la salud
-            cli.privmsg(config['gamebot'], "#hp")
-
-        elif msg.endswith("but it seems you know every single corner of it."):
-            cli.privmsg(config['gamebot'], "#we")
-        elif msg.startswith("You are ready to go."):
-            cli.privmsg(config['gamebot'], "#we")
-        elif msg.startswith("You meet"):
-            cli.privmsg(config['gamebot'], config['say_to_folks'])
-        elif msg.startswith("You are already in") or msg.startswith("You enter the"):
-            if "Hotel" in msg:
-                got_to_hotel(cli, event)
-            elif "Bank" in msg:
-                got_to_bank(cli, event)
 
 
 def process_user_input(cli, cmdline, priv=False):
@@ -314,8 +318,6 @@ def connection_check():
     while not QUIT_SIGNAL:
         if not hira.connected:
             hira.connect()
-            hira.send("away I'm a bot, I won't answer :)")
-
         time.sleep(1)
 
 
@@ -340,7 +342,8 @@ if __name__ == '__main__':
     # Register basic event processing
     hira.addhandler("privnotice", on_privnotice)
     hira.addhandler("whoisuser", on_whoisuser_reply)
-    hira.addhandler("307", on_307_reply)
+    hira.addhandler("registerednick", on_registerednick)
+    hira.addhandler("youruuid", on_serverconnected)
 
     # Start a backgroudn thread checking that the connection is alive
     _thread.start_new_thread(connection_check, ())
@@ -359,5 +362,5 @@ if __name__ == '__main__':
 
         except KeyboardInterrupt:
             QUIT_SIGNAL = True
-            hira.disconnect('I\'ll be back.')
+            hira.disconnect(config['msg_quit'])
             break
