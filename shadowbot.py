@@ -106,7 +106,7 @@ def on_privmsg(cli, event):
         elif msg.startswith("You are already in") or msg.startswith("You enter the"):
 
             # Reset task
-            if task in msg.lower():
+            if task is not None and task in msg.lower():
                 task = None
 
             if "Hotel" in msg:
