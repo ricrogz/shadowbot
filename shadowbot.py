@@ -2,12 +2,14 @@
 # -*- coding: utf-8 -*-
 
 import re
-import sys
 import json
 import time
 import logging
 import _thread
 import irc.client as client
+import readline
+
+# import urwid # to build an UI  (TO DO)
 
 ENEMY_STATS_REGEX = re.compile(r'\(([\-\.\d]+)m\)\(L(\d+)(\((\d+)\))?\)')
 HP_REGEX = re.compile(r'\d+-(.+?)\((.+?)/(.+?)\)')
@@ -383,7 +385,7 @@ if __name__ == '__main__':
         # Check for Ctrl-C; clean up and exit if found
         try:
 
-            line = sys.stdin.readline().strip()
+            line = input().strip()
 
             # Pass inputo to handler function (only if not empy)
             if line:
