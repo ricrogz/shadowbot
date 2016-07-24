@@ -111,9 +111,9 @@ def on_privmsg(cli, event):
 
             if "Hotel" in msg:
                 got_to_hotel(cli, event)
-            elif "Bank" in msg:
+            elif config['rid_mode'] == 'bank' and "Bank" in msg:
                 got_to_bank(cli, event)
-            elif "Store" in msg:
+            elif config['rid_mode'] == 'store' and "Store" in msg:
                 got_to_store(cli, event)
 
 
