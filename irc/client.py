@@ -6,6 +6,7 @@ import re
 import time
 from . import numerics
 from . import features
+import colorama
 
 _rfc_1459_command_regexp = re.compile("^(:(?P<prefix>[^ ]+) +)?(?P<command>[" +
                                       "^ ]+)( *(?P<argument> .+))?")
@@ -13,7 +14,6 @@ _rfc_1459_command_regexp = re.compile("^(:(?P<prefix>[^ ]+) +)?(?P<command>[" +
 
 class IRCClient:
     # Defaults..
-
 
     def __init__(self, sid):
         self.server = None    # IRC server
@@ -232,7 +232,22 @@ class IRCClient:
                 line = line.decode('latin1')
             if not line:
                 continue
-            self.logger.info(line.replace("\x02", "█"))
+            # self.logger.info(line.replace("\x02", "█"))
+
+            # Translate color and bold:
+            console_line = line
+            for mark_start, mark_stop, substitute in \
+                    [('\x036', '\x03', colorama.Fore.CYAN), ('\x02', '\x02', colorama.Style.BRIGHT), ]:
+                console_line = re.sub(
+                    r'{0}(?P<bold>[^{1}]*){1}'.format(mark_start, mark_stop),
+                    '{0}\g<bold>{1}'.format(substitute, colorama.Style.RESET_ALL), console_line
+                )
+                if mark_start in console_line:
+                    console_line = console_line.replace(mark_start, substitute) + colorama.Style.RESET_ALL
+                if mark_stop in console_line:
+                    console_line = console_line.replace(mark_stop, colorama.Style.RESET_ALL)
+
+            self.logger.info(console_line)
             self._processline(line)
 
     def _process_queue(self):

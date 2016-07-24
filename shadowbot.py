@@ -9,7 +9,7 @@ import logging
 import _thread
 import irc.client as client
 
-ENEMY_STATS_REGEX = re.compile(r'\(([\-\.\d]+)m\)\(L(\d+)\((\d+)\)\)')
+ENEMY_STATS_REGEX = re.compile(r'\(([\-\.\d]+)m\)\(L(\d+)(\((\d+)\))?\)')
 HP_REGEX = re.compile(r'\d+-(.+?)\((.+?)/(.+?)\)')
 WE_REGEX = re.compile(r'\d+-(.+?)\((.+?)kg/(.+?)kg\)')
 QUIT_SIGNAL = False
@@ -43,8 +43,6 @@ def on_privnotice(cli, event):
         cli.whois(config['nickserv'])
         cli.whois(config['gamebot'])
         return
-    elif event.target != config['gamebot']:
-        return
 
 
 def on_privmsg(cli, event):
@@ -54,7 +52,7 @@ def on_privmsg(cli, event):
 
     # Always autofight
     if event.target == config['gamebot']:
-        if "You ENCOUNTER" in msg:
+        if "You ENCOUNTER" in msg or 'You are fighting against' in msg:
             fight_start(cli, event)
             return
         elif " and killed them with " in msg:
@@ -73,34 +71,36 @@ def on_privmsg(cli, event):
                 # This one is absolute!
                 # totes = (float(jug[1])/float(jug[2]))*100
 
-                # Si alguien en la party tiene poco HP,
-                # y no hay ya un destino, volvemos al hotel
+                # If anyone is low on HP, and we do not have a task, go to rest
                 if float(jug[1]) < config['hp_sleep'] and goto_destination('hotel', cli, event):
-                    cli.privmsg(config['gamebot'], "Yendo al hotel por que {0} está muriendose".format(jug[0]))
+                    cli.privmsg(config['gamebot'],
+                                "Going to rest because {0} is low on HP".format(jug[0]))
                     return
 
-            # Si todos están enteros, exploramos.
+            # If everyone is ok, we resume our mission
             goto_mission(cli, event)
 
         elif msg.startswith("Your party carries"):
             for jug in WE_REGEX.findall(msg):
                 totes = (float(jug[1])/float(jug[2]))*100.
 
-                # Si alguien es muy gordo,
-                # y no hay ya un destino, vamos al banco
-                if totes > config['we_bank'] and goto_destination('bank', cli, event):
-                    cli.privmsg(config['gamebot'], "Yendo al banco por que {0} está muy gordo/a".format(jug[0]))
+                # If anyone is overweighted, and we do not have a task,
+                # we go get rid of the items
+                if totes > config['we_rid'] and goto_destination(config['rid_mode'], cli, event):
+                    cli.privmsg(config['gamebot'],
+                                "Going to {0} because {1} is overloaded".format(config['rid_mode'], jug[0]))
                     return
 
-            # Si el peso está bien, comprobamos la salud
+            # If nobody is overloaded, we check HP
             cli.privmsg(config['gamebot'], "#hp")
 
-        elif msg.endswith("but it seems you know every single corner of it."):
+        elif msg.endswith('but it seems you know every single corner of it.') \
+                or msg.startswith('You are ready to go.') or msg.startswith('You are outside of'):
             cli.privmsg(config['gamebot'], "#we")
-        elif msg.startswith("You are ready to go."):
-            cli.privmsg(config['gamebot'], "#we")
+
         elif msg.startswith("You meet"):
             cli.privmsg(config['gamebot'], config['say_to_folks'])
+
         elif msg.startswith("You are already in") or msg.startswith("You enter the"):
 
             # Reset task
@@ -111,12 +111,14 @@ def on_privmsg(cli, event):
                 got_to_hotel(cli, event)
             elif "Bank" in msg:
                 got_to_bank(cli, event)
+            elif "Store" in msg:
+                got_to_store(cli, event)
 
 
 def parse_config(cli, cfg, value, cast):
     try:
         config[cfg] = cast(value)
-    except ValueError:
+    except (ValueError, IndexError):
         pass
     json.dump(config, open('config.json', 'w'), indent=2, sort_keys=True)
     cli.privmsg(config['gamebot'], "{0} set to '{1}'".format(cfg.upper(), config[cfg]))
@@ -141,7 +143,7 @@ def check_auth(cli, _):
 
         make_auth()
 
-        cli.privmsg(config['gamebot'], "#we")
+        cli.privmsg(config['gamebot'], "#p")
 
 
 def goto_destination(destination, cli, _, forced=False):
@@ -176,13 +178,23 @@ def got_to_bank(cli, _):
     cli.privmsg(config['gamebot'], "#we")
 
 
+def got_to_store(cli, _):
+    sell_items(cli)
+    cli.privmsg(config['gamebot'], "#we")
+
+
 def push_items(cli, num_items=30, start_index=None):
-    pos = config['bank_store_index'] if start_index is None else start_index
+    pos = config['ridding_index'] if start_index is None else start_index
     for _ in range(num_items):
         cli.privmsg(config['gamebot'], "#pushall {0}".format(pos))
-    if config['autoplay']:
-        wait_time = num_items if num_items > 5 else 5
-        time.sleep(wait_time)
+        time.sleep(0.2)
+
+
+def sell_items(cli, num_items=30, start_index=None):
+    pos = config['ridding_index'] if start_index is None else start_index
+    for _ in range(num_items):
+        cli.privmsg(config['gamebot'], "#sellall {0}".format(pos))
+        time.sleep(0.2)
 
 
 def pop_items(cli, num_items=30, start_index=None):
@@ -200,7 +212,13 @@ def fight_start(cli, event):
         if lvls:
             enemy_num = int(enemy.split("-", 1)[0])
             # First order parameter: armouring; 2nd: level; 3rd: distance
-            item = (int(lvls.group(3)), int(lvls.group(2)), abs(float(lvls.group(1))), int(enemy_num), enemy)
+            item = (
+                0 if lvls.group(4) is None else int(lvls.group(4)),
+                int(lvls.group(2)),
+                abs(float(lvls.group(1))),
+                int(enemy_num),
+                enemy
+            )
             enemies.append(item)
     enemies.sort()
     cli.privmsg(config['gamebot'], "Luchando contra:")
@@ -233,11 +251,13 @@ def process_user_input(cli, cmdline, priv=False):
               "$show_task:                     Show current detination.\n" \
               "$reset_task:                    Reset current detination.\n" \
               "$autoplay [off/on/0/1]:         Switch/enable/disable autoplay bot.\n" \
-              "$set_bank_store_index (int):    Set index from which to store in bank.\n" \
+              "$teleport [off/on/0/1]:          Switch/enable/disable teleporting.\n" \
+              "$set_ridding_index (int):     Set index from which to store in bank or sell.\n" \
               "$set_say_to_folks (text):       Set words to say to npcs on meeting.\n" \
               "$set_gamebot (text):            Set nick of game bot.\n" \
+              "$set_rid_mode (bank/store):     Set how to get rid of weight.\n" \
               "$set_hp_sleep (int):            Set hp value to return to hotel.\n" \
-              "$set_we_bank (int):             Set weight % to store items in bank.\n" \
+              "$set_we_rid (int):              Set weight % to trigger getting rid of items.\n" \
               "$push_items [num] [inv_index]:  Store 'num' items starting from 'inv_index'" \
               " or bank_store_index as default.\n" \
               "$pop_items [num] [bank_index]:  Retrieve 'num' items starting from 'bank_index'" \
@@ -275,9 +295,9 @@ def process_user_input(cli, cmdline, priv=False):
         else:
             config[l_cmd[1:]] = not config[l_cmd[1:]]
         json.dump(config, open('config.json', 'w'), indent=2, sort_keys=True)
-        cli.privmsg(config['gamebot'], "{0} is {1}".format(l_cmd[1:].upper(), "ON" if config['autoplay'] else "OFF"))
+        cli.privmsg(config['gamebot'], "{0} is {1}".format(l_cmd[1:].upper(), "ON" if config[l_cmd[1:]] else "OFF"))
 
-    elif l_cmd in ['$set_bank_store_index', '$set_hp_sleep', '$set_we_bank', ]:
+    elif l_cmd in ['$set_ridding_index', '$set_hp_sleep', '$set_we_rid', ]:
         parse_config(cli, l_cmd[5:], args[0], int)
 
     elif l_cmd in ['$set_say_to_folks', ]:
@@ -286,9 +306,16 @@ def process_user_input(cli, cmdline, priv=False):
     elif l_cmd in ['$set_gamebot', ]:
         parse_config(cli, l_cmd[5:], args[0], str)
 
+    elif l_cmd == '$set_rid_mode':
+        if l_args[0] in ['bank', 'store', ]:
+            parse_config(cli, l_cmd[5:], args[0], str)
+        else:
+            # Force an exception to print current value
+            parse_config(cli, l_cmd[5:], None, int)
+
     elif l_cmd == '$push_items':
         num = 30
-        idx = config['bank_store_index']
+        idx = config['ridding_index']
         try:
             num = int(args[0])
             idx = int(args[1])
