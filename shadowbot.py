@@ -243,35 +243,51 @@ def completer(text, state):
     """ Adapted from here: https://pymotw.com/2/readline/ """
     global current_candidates
 
-    places = ['alchemist', 'archery', 'arena', 'ares', 'bank', 'bathroom', 'bazar', 'bedroom',
-              'bigcave', 'blackmarket', 'blacksmith', 'blacktemple', 'block1', 'bureau',
-              'cardealer', 'cave', 'caveita', 'cell1', 'cell2', 'cell3', 'cell4', 'cell5',
-              'cell6', 'chiefroom', 'church', 'clanhq', 'clearing', 'conferenceroom', 'creek',
-              'cschool', 'dallas', 'danko', 'deckers', 'depot1', 'depot2', 'depot3', 'depot4',
-              'depot5', 'diningroom', 'downstairs', 'elevator', 'exit', 'farm', 'florist',
-              'forest', 'garage', 'graytemple', 'grove', 'harbor', 'heatroom', 'hellpub',
-              'hiddenstorage', 'hideout', 'hospital', 'hotel', 'hut', 'hwshop', 'jewelry',
-              'kitchen', 'lake', 'library', 'livingroom', 'lobby', 'lockerrooms1', 'lockerrooms2',
-              'maclarens', 'meleerange', 'nysoft', 'oldgraveyard', 'orkhq', 'owlsclub', 'piercer',
-              'prison', 'prisonb2', 'razorsedge', 'renraku', 'renraku02', 'renraku03',
-              'renraku04', 'room1', 'room2', 'room3', 'room4', 'room7', 'rooma', 'rottenhome',
-              'school', 'scrapyard', 'secondhand', 'shamane', 'ship1', 'ship2', 'shootingrange',
-              'shrine', 'sleepchamber', 'snookerroom', 'storage1', 'storage2', 'storageroom',
-              'store', 'subway', 'temple', 'trollcellar', 'trollhq', 'trollhq2', 'trollsinn',
-              'tunnel1', 'tunnel2', 'tunnel3', 'tunnel4', 'tunnel5', 'tunnel6', 'university',
-              'upstairs', 'visitorsroom', 'well', 'whitetemple', 'witchhouse', ]
+    places = [
+        'alchemist', 'archery', 'arena', 'ares', 'bank', 'bathroom', 'bazar', 'bedroom',
+        'bigbureau', 'bigcave', 'blackmarket', 'blacksmith', 'blacktemple', 'block1', 'bureau',
+        'bureau1', 'bureau2', 'cardealer', 'cave', 'caveita', 'cell1', 'cell2', 'cell3', 'cell4',
+        'cell5', 'cell6', 'chiefroom', 'church', 'clanhq', 'clearing', 'conferenceroom', 'creek',
+        'cschool', 'cubicle1', 'cubicle2', 'dallas', 'danko', 'deckers', 'depot1', 'depot2',
+        'depot3', 'depot4', 'depot5', 'diningroom', 'downstairs', 'elevator', 'exit', 'exit',
+        'farm', 'florist', 'forest', 'garage', 'graytemple', 'grove', 'harbor', 'heatroom',
+        'hellpub', 'hiddenstorage', 'hideout', 'hospital', 'hotel', 'hut', 'hwshop', 'jewelry',
+        'kitchen', 'lake', 'library', 'livingroom', 'lobby', 'lockerrooms1', 'lockerrooms2',
+        'maclarens', 'meleerange', 'nysoft', 'oldgraveyard', 'orkhq', 'owlsclub', 'piercer',
+        'prison', 'prisonb2', 'razorsedge', 'reception', 'renraku', 'renraku02', 'renraku03',
+        'renraku04', 'room1', 'room2', 'room3', 'room4', 'room7', 'rooma', 'rottenhome',
+        'school', 'scrapyard', 'secondhand', 'serverroom', 'shamane', 'ship1', 'ship2',
+        'shootingrange', 'shrine', 'sleepchamber', 'snookerroom', 'storage1', 'storage2',
+        'storageroom', 'store', 'subway', 'temple', 'trollcellar', 'trollhq', 'trollhq2',
+        'trollsinn', 'tunnel1', 'tunnel2', 'tunnel3', 'tunnel4', 'tunnel5', 'tunnel6',
+        'university', 'upstairs', 'visitorsroom', 'well', 'whitetemple', 'witchhouse'
+    ]
 
     spells = {
-        'teleport ': places,
+        'berzerk': [], 'blow': [], 'bunny': [], 'calm': [], 'chameleon': [], 'fireball': [],
+        'firebolt': [], 'firewall': [], 'flu': [], 'freeze': [], 'goliath': [], 'hawkeye': [],
+        'heal': [], 'hummingbird': [], 'icedorn': [], 'magicarp': [], 'poison_dart': [],
+        'rabbit': [], 'teleport': places, 'teleportii': places, 'teleportiii': places,
+        'teleportiv': places, 'tornado': [], 'turtle': [], 'vulcano': [], 'whirlwind': [],
     }
 
     options = {
-        'g ':
-            places,
-        '$go ':
-            places,
         '#cast ':
             spells,
+        '#g ':
+            places,
+        '#lvlup ':
+            [
+                'alc', 'bio', 'bow', 'cas', 'com', 'ele', 'elep', 'fir', 'hmg', 'loc', 'mel',
+                'neg', 'nin', 'orca', 'pis', 'sat', 'sde', 'sea', 'sha', 'sho', 'smg', 'swo',
+                'thi', 'vik',
+
+                'bo', 'qu', 'st', 'ch', 'lu', 'wi', 'in', 're', 'ma',
+
+                'inc', 'inl', 'mat', 'cry', 'ste',
+            ] + list(spells.keys()),
+        '$go ':
+            places,
         '$show_task':
             [],
         '$reset_task':
