@@ -11,7 +11,7 @@ import readline
 
 # import urwid # to build an UI  (TO DO)
 
-ENEMY_STATS_REGEX = re.compile(r'\(([\-\.\d]+)m\)\(L(\d+)(\((\d+)\))?\)')
+ENEMY_STATS_REGEX = re.compile(r'\(([\-.\d]+)m\)\(L(\d+)(\((\d+)\))?\)')
 HP_REGEX = re.compile(r'\d+-(.+?)\((.+?)/(.+?)\)')
 WE_REGEX = re.compile(r'\d+-(.+?)\((.+?)kg/(.+?)kg\)')
 QUIT_SIGNAL = False
@@ -189,14 +189,14 @@ def push_items(cli, num_items=30, start_index=None):
     pos = config['ridding_index'] if start_index is None else start_index
     for _ in range(num_items):
         cli.privmsg(config['gamebot'], "#pushall {0}".format(pos))
-        time.sleep(0.2)
+        time.sleep(0.5)
 
 
 def sell_items(cli, num_items=30, start_index=None):
     pos = config['ridding_index'] if start_index is None else start_index
     for _ in range(num_items):
         cli.privmsg(config['gamebot'], "#sellall {0}".format(pos))
-        time.sleep(0.2)
+        time.sleep(0.5)
 
 
 def pop_items(cli, num_items=30, start_index=None):
@@ -239,6 +239,111 @@ def fight_next(cli, _):
         cli.privmsg(config['gamebot'], "#we")
 
 
+def completer(text, state):
+    """ Adapted from here: https://pymotw.com/2/readline/ """
+    global current_candidates
+
+    places = ['alchemist', 'archery', 'arena', 'ares', 'bank', 'bathroom', 'bazar', 'bedroom',
+              'bigcave', 'blackmarket', 'blacksmith', 'blacktemple', 'block1', 'bureau',
+              'cardealer', 'cave', 'caveita', 'cell1', 'cell2', 'cell3', 'cell4', 'cell5',
+              'cell6', 'chiefroom', 'church', 'clanhq', 'clearing', 'conferenceroom', 'creek',
+              'cschool', 'dallas', 'danko', 'deckers', 'depot1', 'depot2', 'depot3', 'depot4',
+              'depot5', 'diningroom', 'downstairs', 'elevator', 'exit', 'farm', 'florist',
+              'forest', 'garage', 'graytemple', 'grove', 'harbor', 'heatroom', 'hellpub',
+              'hiddenstorage', 'hideout', 'hospital', 'hotel', 'hut', 'hwshop', 'jewelry',
+              'kitchen', 'lake', 'library', 'livingroom', 'lobby', 'lockerrooms1', 'lockerrooms2',
+              'maclarens', 'meleerange', 'nysoft', 'oldgraveyard', 'orkhq', 'owlsclub', 'piercer',
+              'prison', 'prisonb2', 'razorsedge', 'renraku', 'renraku02', 'renraku03',
+              'renraku04', 'room1', 'room2', 'room3', 'room4', 'room7', 'rooma', 'rottenhome',
+              'school', 'scrapyard', 'secondhand', 'shamane', 'ship1', 'ship2', 'shootingrange',
+              'shrine', 'sleepchamber', 'snookerroom', 'storage1', 'storage2', 'storageroom',
+              'store', 'subway', 'temple', 'trollcellar', 'trollhq', 'trollhq2', 'trollsinn',
+              'tunnel1', 'tunnel2', 'tunnel3', 'tunnel4', 'tunnel5', 'tunnel6', 'university',
+              'upstairs', 'visitorsroom', 'well', 'whitetemple', 'witchhouse', ]
+
+    spells = {
+        'teleport ': places,
+    }
+
+    options = {
+        'g ':
+            places,
+        '$go ':
+            places,
+        '#cast ':
+            spells,
+        '$show_task':
+            [],
+        '$reset_task':
+            [],
+        '$autoplay':
+            ['0', '1', 'on', 'off', '', ],
+        '$teleport':
+            ['0', '1', 'on', 'off', '', ],
+        '$set_ridding_index ':
+            [],
+        '$set_say_to_folks ':
+            [],
+        '$set_gamebot ':
+            [],
+        '$set_rid_mode ':
+            ['bank', 'store'],
+        '$set_hp_sleep ':
+            [],
+        '$set_we_rid ':
+            [],
+        '$push_items':
+            [],
+        '$pop_items':
+            [],
+        '$raw ':
+            [],
+        '$quit':
+            [],
+    }
+
+    if state == 0:
+        # This is the first time for this text, so build a match list.
+
+        origline = readline.get_line_buffer()
+        begin = readline.get_begidx()
+        end = readline.get_endidx()
+        being_completed = origline[begin:end]
+        words = origline.split()
+
+        if not words:
+            current_candidates = sorted(options.keys())
+        else:
+            try:
+                if begin == 0:
+                    # first word
+                    candidates = options.keys()
+                else:
+                    # later word
+                    first = words[0]
+                    if first in options:
+                        candidates = options[first]
+                    else:
+                        candidates = options[first + ' ']
+
+                if being_completed:
+                    # match options with portion of input
+                    # being completed
+                    current_candidates = [w for w in candidates if w.startswith(being_completed)]
+                else:
+                    # matching empty string so use all candidates
+                    current_candidates = candidates
+
+            except (KeyError, IndexError):
+                current_candidates = []
+
+    try:
+        response = current_candidates[state]
+    except IndexError:
+        response = None
+    return response
+
+
 def process_user_input(cli, cmdline, priv=False):
     global task
 
@@ -253,8 +358,8 @@ def process_user_input(cli, cmdline, priv=False):
               "$show_task:                     Show current detination.\n" \
               "$reset_task:                    Reset current detination.\n" \
               "$autoplay [off/on/0/1]:         Switch/enable/disable autoplay bot.\n" \
-              "$teleport [off/on/0/1]:          Switch/enable/disable teleporting.\n" \
-              "$set_ridding_index (int):     Set index from which to store in bank or sell.\n" \
+              "$teleport [off/on/0/1]:         Switch/enable/disable teleporting.\n" \
+              "$set_ridding_index (int):       Set index from which to store in bank or sell.\n" \
               "$set_say_to_folks (text):       Set words to say to npcs on meeting.\n" \
               "$set_gamebot (text):            Set nick of game bot.\n" \
               "$set_rid_mode (bank/store):     Set how to get rid of weight.\n" \
@@ -360,6 +465,13 @@ if __name__ == '__main__':
 
     # Load configuration file
     config = json.load(open('config.json'))
+
+    # Setup command completion
+    # Register our completer function
+    current_candidates = []
+    readline.set_completer_delims(' ')
+    readline.set_completer(completer)
+    readline.parse_and_bind('tab: complete')
 
     # Create irc connection
     hira = client.IRCClient('')
