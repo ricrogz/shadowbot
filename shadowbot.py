@@ -208,7 +208,7 @@ def push_items(cli, num_items=30, start_index=None):
             break
 
         cli.privmsg(config['gamebot'], "#pushall {0}".format(pos))
-        time.sleep(0.5)
+        time.sleep(1)
 
     HALT_LOOPS = False
 
@@ -224,12 +224,12 @@ def sell_items(cli, num_items=30, start_index=None):
             break
 
         cli.privmsg(config['gamebot'], "#sellall {0}".format(pos))
-        time.sleep(0.5)
+        time.sleep(1)
 
     HALT_LOOPS = False
 
 
-def talk_words(cli, to_word, from_word=1):
+def loop(cli, action, to_word, from_word=1):
     global HALT_LOOPS
 
     for word_num in range(from_word, to_word + 1):
@@ -238,7 +238,7 @@ def talk_words(cli, to_word, from_word=1):
         if HALT_LOOPS:
             break
 
-        cli.privmsg(config['gamebot'], "#talk {0}".format(word_num))
+        cli.privmsg(config['gamebot'], "{0} {1}".format(action, word_num))
         time.sleep(1)
 
     HALT_LOOPS = False
@@ -342,6 +342,8 @@ def completer(_, state):
             ['0', '1', 'on', 'off', '', ],
         '$go ':
             places,
+        '$loop ':
+            ['pushall', 'sellall', 'talk', ],
         '$pop_items':
             [],
         '$push_items':
@@ -363,8 +365,6 @@ def completer(_, state):
         '$set_we_rid ':
             [],
         '$show_task':
-            [],
-        '$talk':
             [],
         '$teleport':
             ['0', '1', 'on', 'off', '', ],
@@ -433,7 +433,7 @@ def process_user_input(cli, cmdline, priv=False):
               "$go (text):                     Force going to given destination.\n" \
               "$show_task:                     Show current detination.\n" \
               "$reset_task:                    Reset current detination.\n" \
-              "$talk (int) (int):              Talk known words.\n" \
+              "$loop (action) (int) [int]:     Loop (action) with args from [int -- default 1] to (int).\n" \
               "$autoplay [off/on/0/1]:         Switch/enable/disable autoplay bot.\n" \
               "$teleport [off/on/0/1]:         Switch/enable/disable teleporting.\n" \
               "$set_ridding_index (int):       Set index from which to store in bank or sell.\n" \
@@ -523,20 +523,20 @@ def process_user_input(cli, cmdline, priv=False):
     elif l_cmd == '$quit':
         raise KeyboardInterrupt
 
-    elif l_cmd == '$talk' and len(args) > 0:
+    elif l_cmd == '$loop' and len(args) > 1:
 
         to_word = 0
         from_word = 1
         try:
             if len(args) == 1:
-                to_word = int(args[0])
-            elif len(args) > 1:
-                from_word = int(args[0])
                 to_word = int(args[1])
+            elif len(args) > 1:
+                from_word = int(args[1])
+                to_word = int(args[2])
         except ValueError:
             pass
         else:
-            talk_words(cli, to_word, from_word)
+            loop(cli, args[0], to_word, from_word)
 
     elif cmdline:
         cli.privmsg(config['gamebot'], cmdline)
