@@ -45,7 +45,7 @@ numerics = {
         "245": "statssline",
         "247": "statsxline",
         "248": "statsuline",
-        "248": "statsdebug",
+        "249": "statsdebug",
         "250": "luserconns",
         "251": "luserclient",
         "252": "luserop",

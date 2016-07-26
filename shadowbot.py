@@ -5,7 +5,7 @@ import re
 import json
 import time
 import logging
-import _thread
+import threading
 import irc.client as client
 import readline
 
@@ -15,6 +15,7 @@ ENEMY_STATS_REGEX = re.compile(r'\(([\-.\d]+)m\)\(L(\d+)(\((\d+)\))?\)')
 HP_REGEX = re.compile(r'\d+-(.+?)\((.+?)/(.+?)\)')
 WE_REGEX = re.compile(r'\d+-(.+?)\((.+?)kg/(.+?)kg\)')
 QUIT_SIGNAL = False
+HALT_LOOPS = False
 
 authlist = set()
 enemies = []
@@ -120,7 +121,7 @@ def on_privmsg(cli, event):
 def parse_config(cli, cfg, value, cast):
     try:
         config[cfg] = cast(value)
-    except (ValueError, IndexError):
+    except (ValueError, IndexError, TypeError):
         pass
     json.dump(config, open('config.json', 'w'), indent=2, sort_keys=True)
     cli.privmsg(config['gamebot'], "{0} set to '{1}'".format(cfg.upper(), config[cfg]))
@@ -132,12 +133,15 @@ def split_cmdline(cmd):
 
 
 def check_auth(cli, _):
+    global HALT_LOOPS
 
     def make_auth():
         cli.privmsg(config['nickserv'], "IDENTIFY {0}".format(config['password']))
         cli.privmsg(config['gamebot'], ".login {0}".format(config['password']))
 
     if config['gamebot'] in authlist and config['nickserv'] in authlist:
+        HALT_LOOPS = False
+
         hira.removehandler("whoisuser", on_whoisuser_reply)
         hira.removehandler("registerednick", on_registerednick)
 
@@ -148,11 +152,19 @@ def check_auth(cli, _):
         cli.privmsg(config['gamebot'], "#p")
 
 
+def deauth():
+    hira.removehandler("privmsg", on_privmsg)
+
+    hira.addhandler("whoisuser", on_whoisuser_reply)
+    hira.addhandler("registerednick", on_registerednick)
+
+
 def goto_destination(destination, cli, _, forced=False):
     global task
     if task is None or forced:
         task = destination.lower()
         if config['teleport']:
+            cli.privmsg(config['gamebot'], "#stop")  # required by low-level teleport
             cli.privmsg(config['gamebot'], "#cast teleport {0}".format(task))
             cli.privmsg(config['gamebot'], "#enter")
         else:
@@ -186,17 +198,50 @@ def got_to_store(cli, _):
 
 
 def push_items(cli, num_items=30, start_index=None):
+    global HALT_LOOPS
+
     pos = config['ridding_index'] if start_index is None else start_index
     for _ in range(num_items):
+
+        # break loop if we disconnect
+        if HALT_LOOPS:
+            break
+
         cli.privmsg(config['gamebot'], "#pushall {0}".format(pos))
         time.sleep(0.5)
 
+    HALT_LOOPS = False
+
 
 def sell_items(cli, num_items=30, start_index=None):
+    global HALT_LOOPS
+
     pos = config['ridding_index'] if start_index is None else start_index
     for _ in range(num_items):
+
+        # break loop if we disconnect
+        if HALT_LOOPS:
+            break
+
         cli.privmsg(config['gamebot'], "#sellall {0}".format(pos))
         time.sleep(0.5)
+
+    HALT_LOOPS = False
+
+
+def talk_words(cli, to_word, from_word=1):
+    global HALT_LOOPS
+
+    for word_num in range(from_word, to_word + 1):
+
+        # break loop if we disconnect
+        if HALT_LOOPS:
+            break
+
+        cli.privmsg(config['gamebot'], "#talk {0}".format(word_num))
+        time.sleep(1)
+
+    HALT_LOOPS = False
 
 
 def pop_items(cli, num_items=30, start_index=None):
@@ -239,7 +284,7 @@ def fight_next(cli, _):
         cli.privmsg(config['gamebot'], "#we")
 
 
-def completer(text, state):
+def completer(_, state):
     """ Adapted from here: https://pymotw.com/2/readline/ """
     global current_candidates
 
@@ -286,34 +331,43 @@ def completer(text, state):
 
                 'inc', 'inl', 'mat', 'cry', 'ste',
             ] + list(spells.keys()),
+        '#travel ':
+            ['1', '2', ],
+        '#use ':
+            [
+                'firstaid ', 'scanner ', 'scanner_v2 ', 'scanner_v3 ', 'scanner_v4 ',
+                'smallfirstaid ', 'stimpatch ',
+             ],
+        '$autoplay':
+            ['0', '1', 'on', 'off', '', ],
         '$go ':
             places,
-        '$show_task':
+        '$pop_items':
+            [],
+        '$push_items':
+            [],
+        '$raw ':
             [],
         '$reset_task':
             [],
-        '$autoplay':
-            ['0', '1', 'on', 'off', '', ],
-        '$teleport':
-            ['0', '1', 'on', 'off', '', ],
+        '$set_gamebot ':
+            [],
+        '$set_hp_sleep ':
+            [],
+        '$set_rid_mode ':
+            ['bank', 'store'],
         '$set_ridding_index ':
             [],
         '$set_say_to_folks ':
             [],
-        '$set_gamebot ':
-            [],
-        '$set_rid_mode ':
-            ['bank', 'store'],
-        '$set_hp_sleep ':
-            [],
         '$set_we_rid ':
             [],
-        '$push_items':
+        '$show_task':
             [],
-        '$pop_items':
+        '$talk':
             [],
-        '$raw ':
-            [],
+        '$teleport':
+            ['0', '1', 'on', 'off', '', ],
         '$quit':
             [],
     }
@@ -379,6 +433,7 @@ def process_user_input(cli, cmdline, priv=False):
               "$go (text):                     Force going to given destination.\n" \
               "$show_task:                     Show current detination.\n" \
               "$reset_task:                    Reset current detination.\n" \
+              "$talk (int) (int):              Talk known words.\n" \
               "$autoplay [off/on/0/1]:         Switch/enable/disable autoplay bot.\n" \
               "$teleport [off/on/0/1]:         Switch/enable/disable teleporting.\n" \
               "$set_ridding_index (int):       Set index from which to store in bank or sell.\n" \
@@ -468,13 +523,31 @@ def process_user_input(cli, cmdline, priv=False):
     elif l_cmd == '$quit':
         raise KeyboardInterrupt
 
+    elif l_cmd == '$talk' and len(args) > 0:
+
+        to_word = 0
+        from_word = 1
+        try:
+            if len(args) == 1:
+                to_word = int(args[0])
+            elif len(args) > 1:
+                from_word = int(args[0])
+                to_word = int(args[1])
+        except ValueError:
+            pass
+        else:
+            talk_words(cli, to_word, from_word)
+
     elif cmdline:
         cli.privmsg(config['gamebot'], cmdline)
 
 
 def connection_check():
+    global HALT_LOOPS
     while not QUIT_SIGNAL:
         if not hira.connected:
+            HALT_LOOPS = True
+            deauth()
             hira.connect()
         time.sleep(1)
 
@@ -511,7 +584,9 @@ if __name__ == '__main__':
     hira.addhandler("youruuid", on_serverconnected)
 
     # Start a backgroudn thread checking that the connection is alive
-    _thread.start_new_thread(connection_check, ())
+    t = threading.Thread(target=connection_check)
+    t.daemon = True
+    t.start()
 
     # Console reading loop
     while True:
@@ -526,6 +601,7 @@ if __name__ == '__main__':
                 process_user_input(hira, line)
 
         except KeyboardInterrupt:
+            print('\n\n Quitting...')
             QUIT_SIGNAL = True
             hira.disconnect(config['msg_quit'])
             break

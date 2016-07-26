@@ -8,8 +8,8 @@ from . import numerics
 from . import features
 import colorama
 
-_rfc_1459_command_regexp = re.compile("^(:(?P<prefix>[^ ]+) +)?(?P<command>[" +
-                                      "^ ]+)( *(?P<argument> .+))?")
+_rfc_1459_command_regexp = re.compile(
+    "^(:(?P<prefix>[^ ]+) +)?(?P<command>[^ ]+)( *(?P<argument> .+))?")
 
 
 class IRCClient:
@@ -37,38 +37,41 @@ class IRCClient:
         self.channels = {}
         self.users = {}
 
-        self.logger = logging.getLogger(sid) # ('bearded-potato-' + sid)
+        self.logger = logging.getLogger(sid)  # ('bearded-potato-' + sid)
         self.ibuffer = LineBuffer()
         self.features = features.FeatureSet()
         self.lastping = time.time()
-        #self.addhandler("pubmsg", self._pubmsg)
+        # self.addhandler("pubmsg", self._pubmsg)
 
         # Internal handlers used to get user/channel information
         self.addhandler("join", self._on_join)
-        #self.addhandler("currenttopic", self._on_topic)
-        #self.addhandler("topic", self._on_topic)
-        #self.addhandler("topicinfo", self._on_topicinfo)
-        #self.addhandler("whospcrpl", self._on_whox)
-        #self.addhandler("whoreply", self._on_who)
-        #self.addhandler("whoisloggedin", self._on_whoisaccount)
-        #self.addhandler("mode", self._on_mode)
-        #self.addhandler("quit", self._on_quit)
-        #self.addhandler("part", self._on_part)
-        #self.addhandler("kick", self._on_kick)
-        #self.addhandler("banlist", self._on_banlist)
-        #self.addhandler("kick", self._on_kick)
-        #self.addhandler("nick", self._on_nick)
+        # self.addhandler("currenttopic", self._on_topic)
+        # self.addhandler("topic", self._on_topic)
+        # self.addhandler("topicinfo", self._on_topicinfo)
+        # self.addhandler("whospcrpl", self._on_whox)
+        # self.addhandler("whoreply", self._on_who)
+        # self.addhandler("whoisloggedin", self._on_whoisaccount)
+        # self.addhandler("mode", self._on_mode)
+        # self.addhandler("quit", self._on_quit)
+        # self.addhandler("part", self._on_part)
+        # self.addhandler("kick", self._on_kick)
+        # self.addhandler("banlist", self._on_banlist)
+        # self.addhandler("kick", self._on_kick)
+        # self.addhandler("nick", self._on_nick)
+
+        self.imayreconnect = True
 
     def configure(self, server, port=6667, nick="Groo", ident="groo",
-                gecos="-", ssl=False, msgdelay=0.5, reconnects=10):
+                  gecos="-", ssl=False, msgdelay=0.5, reconnects=10):
         self.server = server
         self.port = port
         self.nickname = nick
-        self.ident = nick
+        self.ident = ident
         self.gecos = gecos
         self.ssl = ssl
         self.msgdelay = msgdelay
         self.imayreconnect = True
+        self.reconnects = reconnects
 
     def connect(self):
         """ Connects to the IRC server. """
@@ -79,7 +82,7 @@ class IRCClient:
             self.socket.connect((self.server, self.port))
         except socket.error as err:
             self.logger.error("Couldn't connect to {0}:{1}: {2}"
-                .format(self.server, self.port, err))
+                              .format(self.server, self.port, err))
 
             if self.reconncount <= self.reconnects:
                 self.reconncount += 1
@@ -94,7 +97,7 @@ class IRCClient:
         _thread.start_new_thread(self._process_forever, ())
 
         self._fire_event(Event("connect", None, None))
-        time.sleep(2) # v3 ftw
+        time.sleep(2)  # v3 ftw
         self.user(self.ident, self.gecos)
         self.nick(self.nickname)
 
@@ -102,7 +105,7 @@ class IRCClient:
         while self.connected:
             time.sleep(60)
             if (time.time() - self.lastping) > 300:
-                self.disconnect("", False) # We're dead
+                self.disconnect("", False)  # We're dead
 
     def _process_forever(self):
         while self.connected:
@@ -118,10 +121,7 @@ class IRCClient:
         prefix = None
         command = None
         arguments = None
-        self._fire_event(Event("all_raw_messages",
-                                 self.server,
-                                 None,
-                                 [line]))
+        self._fire_event(Event("all_raw_messages", self.server, None, [line]))
 
         m = _rfc_1459_command_regexp.match(line)
         if m.group("prefix"):
@@ -172,17 +172,14 @@ class IRCClient:
 
                     m = list(m)
                     self.logger.debug("command: %s, source: %s, target: %s, "
-                        "arguments: %s", command, prefix, target, m)
-                    self._fire_event(Event(command, NickMask(prefix), target,
-                         m))
+                                      "arguments: %s", command, prefix, target, m)
+                    self._fire_event(Event(command, NickMask(prefix), target, m))
                     if command == "ctcp" and m[0] == "ACTION":
-                        self._fire_event(Event("action", prefix, target,
-                             m[1:]))
+                        self._fire_event(Event("action", prefix, target, m[1:]))
                 else:
                     self.logger.debug("command: %s, source: %s, target: %s, "
-                        "arguments: %s", command, prefix, target, [m])
-                    self._fire_event(Event(command, NickMask(prefix), target,
-                        [m]))
+                                      "arguments: %s", command, prefix, target, [m])
+                    self._fire_event(Event(command, NickMask(prefix), target, [m]))
         else:
             target = None
 
@@ -202,9 +199,8 @@ class IRCClient:
                     command = "umode"
 
             self.logger.debug("command: %s, source: %s, target: %s, "
-                "arguments: %s", command, prefix, target, arguments)
-            self._fire_event(Event(command, NickMask(prefix), target,
-                arguments))
+                              "arguments: %s", command, prefix, target, arguments)
+            self._fire_event(Event(command, NickMask(prefix), target, arguments))
 
     def _process_data(self):
         if not self.connected:
@@ -228,14 +224,14 @@ class IRCClient:
         for line in pline:
             try:
                 line = line.decode('utf-8')
-            except:
+            except UnicodeDecodeError:
                 line = line.decode('latin1')
             if not line:
                 continue
             # self.logger.info(line.replace("\x02", "█"))
 
             # Translate color and bold:
-            console_line = line
+            console_line = str(line)
             for mark_start, mark_stop, substitute in \
                     [('\x036', '\x03', colorama.Fore.CYAN), ('\x02', '\x02', colorama.Style.BRIGHT), ]:
                 console_line = re.sub(
@@ -247,7 +243,12 @@ class IRCClient:
                 if mark_stop in console_line:
                     console_line = console_line.replace(mark_stop, colorama.Style.RESET_ALL)
 
-            self.logger.info(console_line)
+            # Abbreviate nick!user@host to nick:
+            prefix, console_line = console_line.split(' ', 1)
+
+            console_line = console_line.replace(' PRIVMSG {0} :'.format(self.nickname), ' :')
+
+            self.logger.info('{0} {1}'.format(NickMask(prefix).nick, console_line))
             self._processline(line)
 
     def _process_queue(self):
@@ -271,14 +272,14 @@ class IRCClient:
                         _thread.start_new_thread(i['callback'], (self, event))
                 except BaseException as e:
                     self.logger.error("Calling {0} handler raised exception:"
-                                    "{1}".format(event.type, e))
+                                      "{1}".format(event.type, e))
         except KeyError:
             pass
 
     def addhandler(self, action, callback, blocking=False):
         try:
             self.handlers[action]
-        except:
+        except KeyError:
             self.handlers[action] = []
         self.handlers[action].append({'blocking': blocking,
                                       'action': action,
@@ -338,7 +339,7 @@ class IRCClient:
         self._fire_event(Event("disconnect", None, None))
         del self.socket
 
-    ### IRC Commands ###
+    # ## IRC Commands ## #
 
     def user(self, user, realname):
         self.send("USER {0} * * :{1}".format(user, realname), True)
@@ -384,17 +385,20 @@ class IRCClient:
         if type(users) == str:
             self.mode(channel, mode + " " + users)
         elif type(users) == list:
-            f1 = ""
 
-            while users != []:
+            while len(users):
                 if len(users[:self.features.modes]) == self.features.modes:
-                    self.mode(channel, "{0}{1} {2}".format(mode[0], mode[1] * self.features.modes, " ".join(users[:self.features.modes])))
+                    self.mode(channel, "{0}{1} {2}"
+                              .format(mode[0], mode[1] * self.features.modes,
+                                      " ".join(users[:self.features.modes])))
                     users = users[self.features.modes:]
                 else:
-                    self.mode(channel, "{0}{1} {2}".format(mode[0], mode[1] * len(users[:self.features.modes]), " ".join(users[:self.features.modes])))
+                    self.mode(channel, "{0}{1} {2}"
+                              .format(mode[0], mode[1] * len(users[:self.features.modes]),
+                                      " ".join(users[:self.features.modes])))
                     users = []
         else:
-            raise
+            raise Exception
 
     def voice(self, channel, users):
         self.multimode(channel, "+v", users)
@@ -409,10 +413,9 @@ class IRCClient:
             # We just joined a channel, let's add it to the list
             self.channels[event.target] = Channel(self, event.target)
         else:
-            #print(self.channels)
             try:
                 account = event.arguments[0]
-            except:
+            except IndexError:
                 account = None
 
             self.channels[event.target].users[event.source.nick.lower()] = User(
@@ -420,12 +423,10 @@ class IRCClient:
                 "", "", account)
 
     def _on_topic(self, myself, event):
-        self.channels[event.arguments[0]].topicChange(event.source,
-                                                event.arguments[1])
+        self.channels[event.arguments[0]].topicChange(event.source, event.arguments[1])
 
     def _on_topicinfo(self, myself, event):
-        self.channels[event.arguments[0]].topicsetter = NickMask(
-                                                             event.arguments[1])
+        self.channels[event.arguments[0]].topicsetter = NickMask(event.arguments[1])
         self.channels[event.arguments[0]].topicsetterts = event.arguments[2]
 
     def _on_who(self, myself, event):
@@ -436,11 +437,11 @@ class IRCClient:
         self.channels[event.arguments[0].lower()].addUser(event)
 
     def _on_whoisaccount(self, myself, event):
-        #self.users[event.arguments[0].lower()].account = event.arguments[1]
+        # self.users[event.arguments[0].lower()].account = event.arguments[1]
         for i in self.channels:
             try:
                 self.channels[i].users[event.arguments[0].lower()].account = event.arguments[1]
-            except:
+            except IndexError:
                 pass
 
     def _on_whox(self, myself, e):
@@ -457,17 +458,16 @@ class IRCClient:
     def _on_mode(self, myself, event):
         status = ""
         number = 1
-        prefixes = "".join("{!s}".format(k) for (k, v) in
-                            self.features.prefix.items())
+        prefixes = "".join("{!s}".format(k) for (k, v) in self.features.prefix.items())
         prefixes = prefixes.replace("+", "")
         for i in event.arguments[0]:
             if i in prefixes:
                 number += 1
             elif i in self.features.chanmodes[0]:
                 number += 1
-            elif i in self.features.chanmodes[1] and status=="+":
+            elif i in self.features.chanmodes[1] and status == "+":
                 number += 1
-            elif i in self.features.chanmodes[2] and status=="+":
+            elif i in self.features.chanmodes[2] and status == "+":
                 number += 1
             if i == "+":
                 status = "+"
@@ -475,11 +475,11 @@ class IRCClient:
                 status = "-"
             elif i == "v":
                 if status == "-":
-                    self.channels[event.target].users[event.arguments[number].lower()] \
-                    .voice = False
+                    self.channels[event.target].users[event.arguments[number].lower()]\
+                        .voice = False
                 else:
                     self.channels[event.target].users[event.arguments[number].lower()] \
-                    .voice = True
+                        .voice = True
             elif i == "b":
                 if status == "+":
                     ban = Ban(event.arguments[number], time.time())
@@ -495,10 +495,10 @@ class IRCClient:
             elif i in prefixes:
                 if status == "-":
                     self.channels[event.target].users[event.arguments[number].lower()] \
-                    .op = False
+                        .op = False
                 else:
                     self.channels[event.target].users[event.arguments[number].lower()] \
-                    .op = True
+                        .op = True
 
     def _on_part(self, myself, event):
         if event.source.nick == self.nickname:
@@ -507,12 +507,12 @@ class IRCClient:
             del self.channels[event.target].users[event.source.nick.lower()]
 
     def _on_quit(self, myself, event):
-        #del self.users[event.source.nick]
+        # del self.users[event.source.nick]
         for i in self.channels:
             try:
                 del self.channels[i].users[event.source.nick.lower()]
                 self._fire_event(Event("cquit", event.source, i, event.arguments))
-            except:
+            except ValueError:
                 pass
 
     def _on_nick(self, myself, event):
@@ -546,20 +546,22 @@ class Channel(object):
         self.quiets = []
         self.cli = client
         self.name = channelname
-        #try:
+        # try:
         #   client.features.whox
         #    client.who(channelname, "%tcuhnfar,08")
-        #except:
+        # except:
         #    client.who(channelname)
 
-        #client.mode(channelname, "b")
-        #if "q" in client.features.chanmodes[0]:
+        # client.mode(channelname, "b")
+        # if "q" in client.features.chanmodes[0]:
         #    client.mode(channelname, "q")
+
 
     def topicChange(self, source, topic):
         self.topic = topic
         self.topicsetter = source
         self.topicsetterts = time.time()
+
 
     def addUser(self, e):
         if e.arguments[0] == "08":
@@ -579,12 +581,12 @@ class Channel(object):
                     e.arguments[6][2:],
                     e.arguments[5]
                 )
-        #self.cli.users[e.arguments[4]] = self.users[e.arguments[4]]
+        # self.cli.users[e.arguments[4]] = self.users[e.arguments[4]]
 
     def __repr__(self):
         return "<Channel topic:'{0}', topicsetter:'{1}', topicsetterts:'{2}'" \
-               ", users: '{3}'>".format(self.topic, self.topicsetter,
-                self.topicsetterts, self.users)
+               ", users: '{3}'>"\
+            .format(self.topic, self.topicsetter, self.topicsetterts, self.users)
 
 
 class User(object):
@@ -608,8 +610,7 @@ class User(object):
         else:
             self.account = account
 
-        if "@" in status or "&" in status or "%" in status or "~" in status or \
-                                                                  "!" in status:
+        if "@" in status or "&" in status or "%" in status or "~" in status or "!" in status:
             self.op = True
 
         if "+" in status:
@@ -623,15 +624,14 @@ class User(object):
 
 
 class Event(object):
-    def __init__(self, type, source, target, arguments=None):
-        self.type = type
+    def __init__(self, arg_type, source, target, arguments=None):
+        self.type = arg_type
         self.source = source
         self.target = target
         if arguments is None:
             arguments = []
         self.arguments = arguments
-        if type == "privmsg" or type == "pubmsg" or type == "ctcpreply" or type\
-        == "ctcp" or type == "pubnotice" or type == "privnotice":
+        if arg_type in ["privmsg", "pubmsg", "ctcpreply", "ctcp", "pubnotice", "privnotice"]:
             if not is_channel(target):
                 self.target = source.nick
             if not is_channel(source):
@@ -651,11 +651,9 @@ class LineBuffer(object):
 
     def lines(self):
         try:
-            x = (line.decode('utf-8')
-                for line in self._lines())
+            x = (line.decode('utf-8') for line in self._lines())
         except UnicodeDecodeError:
-            x = (line.decode('latin1')
-                for line in self._lines())
+            x = (line.decode('latin1') for line in self._lines())
         return x
 
     def _lines(self):
@@ -688,7 +686,7 @@ def parse_nick(name):
     try:
         nick, rest = name.split('!')
     except ValueError:
-        return (name, None, None, None)
+        return name, None, None, None
     try:
         mode, rest = rest.split('=')
     except ValueError:
@@ -696,9 +694,9 @@ def parse_nick(name):
     try:
         user, host = rest.split('@')
     except ValueError:
-        return (name, mode, rest, None)
+        return name, mode, rest, None
 
-    return (name, nick, mode, user, host)
+    return name, nick, mode, user, host
 
 _LOW_LEVEL_QUOTE = "\020"
 _CTCP_LEVEL_QUOTE = "\134"
@@ -756,7 +754,7 @@ def _ctcp_dequote(message):
                 # Aye!  CTCP tagged data ahead!
                 messages.append(tuple(chunks[i + 1].split(" ", 1)))
 
-            i = i + 2
+            i += 2
 
         if len(chunks) % 2 == 0:
             # Hey, a lonely _CTCP_DELIMITER at the end!  This means
@@ -788,6 +786,7 @@ class NickMask(str):
     @property
     def user(self):
         return self.userhost.split("@")[0]
+
 
 class Ban:
     def __init__(self, mask, pts):

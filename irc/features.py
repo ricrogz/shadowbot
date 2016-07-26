@@ -17,16 +17,19 @@ class FeatureSet(object):
 
     def __init__(self):
         self._set_rfc1459_prefixes()
+        self.modes = None
+        self.prefix = None
+        self.chanmodes = None
 
     def _set_rfc1459_prefixes(self):
-        "install standard (RFC1459) prefixes"
+        """install standard (RFC1459) prefixes"""
         self.set('PREFIX', {
             '@': 'o',
             '+': 'v',
         })
 
     def set(self, name, value=True):
-        "set a feature value"
+        """set a feature value"""
         setattr(self, name.lower(), value)
 
     def remove(self, feature_name):
@@ -34,7 +37,7 @@ class FeatureSet(object):
             delattr(self, feature_name)
 
     def load(self, arguments):
-        "Load the values from the a ServerConnection arguments"
+        """Load the values from the a ServerConnection arguments"""
         target, features, msg = arguments[:1], arguments[1:-1], arguments[-1:]
         list(map(self.load_feature, features))
 
@@ -45,8 +48,8 @@ class FeatureSet(object):
 
         name, sep, value = feature.partition('=')
 
-        #if not sep:
-            #return
+        # if not sep:
+        #   return
 
         if not value:
             self.set(name)
@@ -58,14 +61,14 @@ class FeatureSet(object):
 
     @staticmethod
     def _parse_PREFIX(value):
-        "channel user prefixes"
+        """channel user prefixes"""
         channel_modes, channel_chars = value.split(')')
         channel_modes = channel_modes[1:]
         return dict(list(zip(channel_chars, channel_modes)))
 
     @staticmethod
     def _parse_CHANMODES(value):
-        "channel mode letters"
+        """channel mode letters"""
         return value.split(',')
 
     @staticmethod
