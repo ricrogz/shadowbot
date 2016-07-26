@@ -264,11 +264,11 @@ def completer(text, state):
     ]
 
     spells = {
-        'berzerk': [], 'blow': [], 'bunny': [], 'calm': [], 'chameleon': [], 'fireball': [],
-        'firebolt': [], 'firewall': [], 'flu': [], 'freeze': [], 'goliath': [], 'hawkeye': [],
-        'heal': [], 'hummingbird': [], 'icedorn': [], 'magicarp': [], 'poison_dart': [],
-        'rabbit': [], 'teleport': places, 'teleportii': places, 'teleportiii': places,
-        'teleportiv': places, 'tornado': [], 'turtle': [], 'vulcano': [], 'whirlwind': [],
+        'berzerk ': [], 'blow ': [], 'bunny ': [], 'calm ': [], 'chameleon ': [], 'fireball ': [],
+        'firebolt ': [], 'firewall ': [], 'flu ': [], 'freeze ': [], 'goliath ': [], 'hawkeye ': [],
+        'heal ': [], 'hummingbird ': [], 'icedorn ': [], 'magicarp ': [], 'poison_dart ': [],
+        'rabbit ': [], 'teleport ': places, 'teleportii ': places, 'teleportiii ': places,
+        'teleportiv ': places, 'tornado ': [], 'turtle ': [], 'vulcano ': [], 'whirlwind ': [],
     }
 
     options = {
@@ -335,12 +335,18 @@ def completer(text, state):
                     # first word
                     candidates = options.keys()
                 else:
+                    candidates = options
                     # later word
-                    first = words[0]
-                    if first in options:
-                        candidates = options[first]
-                    else:
-                        candidates = options[first + ' ']
+                    for word in words:
+                        full_word = word + ' '
+                        if word in candidates and not origline.endswith(word):
+                            candidates = candidates[word]
+                            break
+                        elif full_word in candidates and full_word in origline:
+                            candidates = candidates[full_word]
+
+                if type(candidates) == dict:
+                    candidates = list(candidates.keys())
 
                 if being_completed:
                     # match options with portion of input
