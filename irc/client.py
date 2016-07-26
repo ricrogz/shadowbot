@@ -300,7 +300,7 @@ class IRCClient:
             for ihandler in range(len(self.handlers[action])):
                 hnd = self.handlers[action][ihandler]
                 if hnd['action'] == action and hnd['callback'] == callback and hnd['blocking'] == blocking:
-                    self.handlers[action]
+                    del self.handlers[action]
 
     def send(self, raw, urgent=False):
         if urgent is False:
