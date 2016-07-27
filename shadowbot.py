@@ -288,6 +288,8 @@ def completer(_, state):
     """ Adapted from here: https://pymotw.com/2/readline/ """
     global current_candidates
 
+    cities = ['redmond', 'seattle', 'renraku', 'delaware', 'trollhq', 'nysoft', 'chicago', 'vegas', ]
+
     places = [
         'alchemist', 'archery', 'arena', 'ares', 'bank', 'bathroom', 'bazar', 'bedroom',
         'bigbureau', 'bigcave', 'blackmarket', 'blacksmith', 'blacktemple', 'block1', 'bureau',
@@ -331,6 +333,11 @@ def completer(_, state):
 
                 'inc', 'inl', 'mat', 'cry', 'ste',
             ] + list(spells.keys()),
+        '#qu ':
+            {
+                'open ': cities, 'done ': cities, 'deny ': cities, 'fail ': cities, 'abort ': cities,
+                'missing ': cities, 'stats ': cities, 'cstats ': [], 'searchterm ': [],
+            },
         '#travel ':
             ['1', '2', ],
         '#use ':
