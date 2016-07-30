@@ -5,6 +5,7 @@ import re
 import json
 import time
 import logging
+import colorama
 import threading
 import irc.client as client
 import readline
@@ -310,12 +311,38 @@ def completer(_, state):
         'university', 'upstairs', 'visitorsroom', 'well', 'whitetemple', 'witchhouse'
     ]
 
+    city_place = [
+        'chicago_alchemist', 'chicago_archery', 'chicago_arena', 'chicago_ares', 'chicago_bank',
+        'chicago_bazar', 'chicago_blacktemple', 'chicago_blackmarket', 'chicago_blacksmith',
+        'chicago_cardealer', 'chicago_clanhq', 'chicago_graytemple', 'chicago_hwshop',
+        'chicago_hospital', 'chicago_hotel', 'chicago_meleerange', 'chicago_owlsclub',
+        'chicago_razorsedge', 'chicago_secondhand', 'chicago_shootingrange', 'chicago_shrine',
+        'chicago_store', 'chicago_subway', 'chicago_university', 'chicago_well', 'chicago_whitetemple',
+        'delaware_alchemist', 'delaware_ares', 'delaware_bank', 'delaware_bazar', 'delaware_blacksmith',
+        'delaware_cardealer', 'delaware_church', 'delaware_clanhq', 'delaware_dallas',
+        'delaware_hwshop', 'delaware_hospital', 'delaware_hotel', 'delaware_library',
+        'delaware_maclarens', 'delaware_nysoft', 'delaware_prison', 'delaware_scrapyard',
+        'delaware_secondhand', 'delaware_store', 'delaware_subway', 'delaware_temple', 'forest_cave',
+        'forest_clearing', 'forest_creek', 'forest_exit', 'forest_farm', 'forest_grove', 'forest_hut',
+        'forest_lake', 'forest_oldgraveyard', 'forest_witchhouse', 'redmond_alchemist', 'redmond_ares',
+        'redmond_bank', 'redmond_bazar', 'redmond_blacksmith', 'redmond_clanhq', 'redmond_hellpub',
+        'redmond_hideout', 'redmond_hospital', 'redmond_hotel', 'redmond_orkhq', 'redmond_piercer',
+        'redmond_school', 'redmond_secondhand', 'redmond_shrine', 'redmond_store', 'redmond_subway',
+        'redmond_temple', 'redmond_trollsinn', 'renraku', 'seattle_alchemist', 'seattle_archery',
+        'seattle_arena', 'seattle_ares', 'seattle_bank', 'seattle_bazar', 'seattle_blackmarket',
+        'seattle_blacksmith', 'seattle_cschool', 'seattle_clanhq', 'seattle_deckers', 'seattle_florist',
+        'seattle_forest', 'seattle_garage', 'seattle_harbor', 'seattle_hwshop', 'seattle_hospital',
+        'seattle_hotel', 'seattle_library', 'seattle_rottenhome', 'seattle_secondhand', 'seattle_store',
+        'seattle_subway', 'seattle_temple', 'trollhq'
+
+    ]
+
     spells = {
         'berzerk ': [], 'blow ': [], 'bunny ': [], 'calm ': [], 'chameleon ': [], 'fireball ': [],
         'firebolt ': [], 'firewall ': [], 'flu ': [], 'freeze ': [], 'goliath ': [], 'hawkeye ': [],
         'heal ': [], 'hummingbird ': [], 'icedorn ': [], 'magicarp ': [], 'poison_dart ': [],
-        'rabbit ': [], 'teleport ': places, 'teleportii ': places, 'teleportiii ': places,
-        'teleportiv ': places, 'tornado ': [], 'turtle ': [], 'vulcano ': [], 'whirlwind ': [],
+        'rabbit ': [], 'teleport ': places, 'teleportii ': city_place, 'teleportiii ': city_place,
+        'teleportiv ': city_place, 'tornado ': [], 'turtle ': [], 'vulcano ': [], 'whirlwind ': [],
     }
 
     options = {
@@ -344,7 +371,7 @@ def completer(_, state):
             [
                 'firstaid ', 'scanner ', 'scanner_v2 ', 'scanner_v3 ', 'scanner_v4 ',
                 'smallfirstaid ', 'stimpatch ',
-             ],
+            ],
         '$autoplay':
             ['0', '1', 'on', 'off', '', ],
         '$go ':
@@ -510,7 +537,7 @@ def process_user_input(cli, cmdline, priv=False):
         try:
             num = int(args[0])
             idx = int(args[1])
-        except ValueError:
+        except (IndexError, ValueError):
             pass
         push_items(cli, num, idx)
 
@@ -520,7 +547,7 @@ def process_user_input(cli, cmdline, priv=False):
         try:
             num = int(args[0])
             idx = int(args[1])
-        except ValueError:
+        except (IndexError, ValueError):
             pass
         pop_items(cli, num, idx)
 
@@ -536,14 +563,15 @@ def process_user_input(cli, cmdline, priv=False):
         from_word = 1
         try:
             if len(args) == 1:
+                return
+            elif len(args) == 2:
                 to_word = int(args[1])
-            elif len(args) > 1:
+            elif len(args) > 2:
                 from_word = int(args[1])
                 to_word = int(args[2])
-        except ValueError:
+        except (IndexError, ValueError):
             pass
-        else:
-            loop(cli, args[0], to_word, from_word)
+        loop(cli, args[0], to_word, from_word)
 
     elif cmdline:
         cli.privmsg(config['gamebot'], cmdline)
@@ -562,8 +590,16 @@ def connection_check():
 if __name__ == '__main__':
 
     # Prepare logger
-    logging.getLogger(None).setLevel(logging.INFO)
-    logging.basicConfig()
+    logger = logging.getLogger(None)
+    logger.setLevel(logging.INFO)
+
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    fmt = logging.Formatter(
+        "{0}%(asctime)s{1} %(message)s"
+        .format(colorama.Style.BRIGHT, colorama.Style.RESET_ALL), "%H:%M:%S")
+    ch.setFormatter(fmt)
+    logger.addHandler(ch)
 
     # Load configuration file
     config = json.load(open('config.json'))
@@ -581,6 +617,7 @@ if __name__ == '__main__':
                    port=config['port'],
                    nick=config['nick'],
                    ident=config['nick'],
+                   reconnects=0,
                    # gecos="Butts."
                    )
 
