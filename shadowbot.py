@@ -37,10 +37,6 @@ def on_registerednick(cli, event):
         check_auth(cli, event)
 
 
-def on_serverconnected(cli, _):
-    cli.send('away :{0}'.format(config['msg_away']))
-
-
 def on_privnotice(cli, event):
     if event.target.lower() == config['nickserv'].lower() and \
        event.arguments[0].startswith("This nickname is registered and protected."):
@@ -99,11 +95,16 @@ def on_privmsg(cli, event):
             cli.privmsg(config['gamebot'], "#hp")
 
         elif msg.endswith('but it seems you know every single corner of it.') \
+                or msg.endswith('but could not find anything new.') \
                 or msg.startswith('You are ready to go.') or msg.startswith('You are outside of'):
             cli.privmsg(config['gamebot'], "#we")
 
         elif msg.startswith("You meet"):
-            cli.privmsg(config['gamebot'], config['say_to_folks'])
+
+            if "-Bum" in msg:
+                cli.privmsg(config['gamebot'], '#fight')
+            elif len(config['say_to_folks'].strip()):
+                cli.privmsg(config['gamebot'], config['say_to_folks'])
 
         elif msg.startswith("You are already in") or msg.startswith("You enter the"):
 
@@ -180,7 +181,7 @@ def goto_mission(cli, _):
         cli.privmsg(config['gamebot'], "#explore")
         return True
     else:
-        cli.privmsg(config['gamebot'], '#goto {0}'.format(task))
+        goto_destination(task)
     return False
 
 
@@ -590,16 +591,12 @@ def connection_check():
 if __name__ == '__main__':
 
     # Prepare logger
-    logger = logging.getLogger(None)
-    logger.setLevel(logging.INFO)
-
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    fmt = logging.Formatter(
-        "{0}%(asctime)s{1} %(message)s"
-        .format(colorama.Style.BRIGHT, colorama.Style.RESET_ALL), "%H:%M:%S")
-    ch.setFormatter(fmt)
-    logger.addHandler(ch)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="{0}%(asctime)s{1} %(message)s"
+               .format(colorama.Style.BRIGHT, colorama.Style.RESET_ALL),
+        datefmt="%H:%M:%S"
+    )
 
     # Load configuration file
     config = json.load(open('config.json'))
@@ -625,7 +622,6 @@ if __name__ == '__main__':
     hira.addhandler("privnotice", on_privnotice)
     hira.addhandler("whoisuser", on_whoisuser_reply)
     hira.addhandler("registerednick", on_registerednick)
-    hira.addhandler("youruuid", on_serverconnected)
 
     # Start a backgroudn thread checking that the connection is alive
     t = threading.Thread(target=connection_check)
