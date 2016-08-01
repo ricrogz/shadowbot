@@ -2,6 +2,8 @@
     "admin": "shepherd0",
     "autoplay": true,
     "gamebot": "Lamb3",
+    "heal_index": 1,
+    "hp_critical": 7,
     "hp_sleep": 25,
     "msg_away": "I'm a bot, I won't talk back to you :)",
     "msg_quit": "I'll be back",

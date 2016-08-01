@@ -15,6 +15,7 @@ import readline
 ENEMY_STATS_REGEX = re.compile(r'\(([\-.\d]+)m\)\(L(\d+)(\((\d+)\))?\)')
 HP_REGEX = re.compile(r'\d+-(.+?)\((.+?)/(.+?)\)')
 WE_REGEX = re.compile(r'\d+-(.+?)\((.+?)kg/(.+?)kg\)')
+CRITICAL_REGEX = r'.+ attacks \d+-{0}.+and caused [\d.]+ damage, ([\d.]+)/\d+HP left'
 QUIT_SIGNAL = False
 HALT_LOOPS = False
 
@@ -58,6 +59,13 @@ def on_privmsg(cli, event):
         elif " and killed them with " in msg:
             fight_next(cli, event)
             return
+
+        # Check if we have been hurt and are in critical condition
+        hurt = CRITICAL_REGEX.search(msg)
+        if hurt and float(hurt.group(1)) <= config['hp_critical']:
+            heal_self(cli, event)
+            return
+
     # Pass user commands to the processing function
     elif event.target == config['admin']:
         process_user_input(cli, msg, True)
@@ -282,6 +290,10 @@ def fight_next(cli, _):
         cli.privmsg(config['gamebot'], "#we")
 
 
+def heal_self(cli, _):
+    cli.privmsg(config['gamebot'], "#use {0}".format(config['heal_index']))
+
+
 def completer(_, state):
     """ Adapted from here: https://pymotw.com/2/readline/ """
     global current_candidates
@@ -385,6 +397,10 @@ def completer(_, state):
             [],
         '$set_gamebot ':
             [],
+        '$set_heal_index ':
+            [],
+        '$set_hp_critical ':
+            [],
         '$set_hp_sleep ':
             [],
         '$set_rid_mode ':
@@ -468,9 +484,11 @@ def process_user_input(cli, cmdline, priv=False):
               "$autoplay [off/on/0/1]:         Switch/enable/disable autoplay bot.\n" \
               "$teleport [off/on/0/1]:         Switch/enable/disable teleporting.\n" \
               "$set_ridding_index (int):       Set index from which to store in bank or sell.\n" \
+              "$set_heal_index (int):          Set inventory index of healing item.\n" \
               "$set_say_to_folks (text):       Set words to say to npcs on meeting.\n" \
               "$set_gamebot (text):            Set nick of game bot.\n" \
               "$set_rid_mode (bank/store):     Set how to get rid of weight.\n" \
+              "$set_hp_critical (float):       Set hp value to to apply heal item.\n" \
               "$set_hp_sleep (int):            Set hp value to return to hotel.\n" \
               "$set_we_rid (int):              Set weight % to trigger getting rid of items.\n" \
               "$push_items [num] [inv_index]:  Store 'num' items starting from 'inv_index'" \
@@ -512,8 +530,11 @@ def process_user_input(cli, cmdline, priv=False):
         json.dump(config, open('config.json', 'w'), indent=2, sort_keys=True)
         cli.privmsg(config['gamebot'], "{0} is {1}".format(l_cmd[1:].upper(), "ON" if config[l_cmd[1:]] else "OFF"))
 
-    elif l_cmd in ['$set_ridding_index', '$set_hp_sleep', '$set_we_rid', ]:
+    elif l_cmd in ['$set_ridding_index', '$set_hp_sleep', '$set_we_rid', '$set_heal_index', ]:
         parse_config(cli, l_cmd[5:], args[0], int)
+
+    elif l_cmd in ['$set_hp_critical', ]:
+        parse_config(cli, l_cmd[5:], args[0], float)
 
     elif l_cmd in ['$set_say_to_folks', ]:
         parse_config(cli, l_cmd[5:], " ".join(args), str)
@@ -596,6 +617,7 @@ if __name__ == '__main__':
 
     # Load configuration file
     config = json.load(open('config.json'))
+    CRITICAL_REGEX = re.compile(CRITICAL_REGEX.format(config['nick']))
 
     # Setup command completion
     # Register our completer function
