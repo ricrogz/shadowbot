@@ -99,11 +99,7 @@ def on_privmsg(cli, event):
                 or msg.startswith('You are ready to go.') or msg.startswith('You are outside of'):
             cli.privmsg(config['gamebot'], "#we")
 
-        elif msg.startswith("You meet"):
-
-            if "-Bum" in msg:
-                cli.privmsg(config['gamebot'], '#fight')
-            elif len(config['say_to_folks'].strip()):
+        elif msg.startswith("You meet") and len(config['say_to_folks'].strip()):
                 cli.privmsg(config['gamebot'], config['say_to_folks'])
 
         elif msg.startswith("You are already in") or msg.startswith("You enter the"):
@@ -181,7 +177,7 @@ def goto_mission(cli, _):
         cli.privmsg(config['gamebot'], "#explore")
         return True
     else:
-        goto_destination(task)
+        goto_destination(task, cli, None)
     return False
 
 
