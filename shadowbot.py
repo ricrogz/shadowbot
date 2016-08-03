@@ -15,9 +15,13 @@ import readline
 ENEMY_STATS_REGEX = re.compile(r'\(([\-.\d]+)m\)\(L(\d+)(\((\d+)\))?\)')
 HP_REGEX = re.compile(r'\d+-(.+?)\((.+?)/(.+?)\)')
 WE_REGEX = re.compile(r'\d+-(.+?)\((.+?)kg/(.+?)kg\)')
+ITEMLIST_REGEX = r'(?: (\d+)-[^,.]+{0}[^,.]+[,.])+'
 CRITICAL_REGEX = r'.+ attacks \d+-{0}.+and caused [\d.]+ damage, ([\d.]+)/\d+HP left'
 QUIT_SIGNAL = False
 HALT_LOOPS = False
+INV_DOING = None
+
+FLOOD_PROTECTION = 1
 
 authlist = set()
 enemies = []
@@ -47,7 +51,7 @@ def on_privnotice(cli, event):
 
 
 def on_privmsg(cli, event):
-    global task
+    global task, INV_DOING
 
     msg = event.arguments[0].replace('\x02', '')
 
@@ -65,6 +69,23 @@ def on_privmsg(cli, event):
         if hurt and float(hurt.group(1)) <= config['hp_critical']:
             heal_self(cli, event)
             return
+
+        if INV_DOING is not None and 'Your Inventory, page ' in msg \
+                and INV_DOING[1] in msg:
+
+            # We filter the regex to only match items with our search parameter
+            regex = re.compile(ITEMLIST_REGEX.format(INV_DOING[1]))
+            items = regex.findall(msg)
+
+            # we must push in reverse order to keep indexes
+            # so we first map to int
+            items = list(map(int, items))
+            items.sort(reverse=True)
+
+            for i in items:
+                cli.privmsg(config['gamebot'], "{0} {1}".format(INV_DOING[0], i))
+                time.sleep(FLOOD_PROTECTION)
+            INV_DOING = None
 
     # Pass user commands to the processing function
     elif event.target == config['admin']:
@@ -214,7 +235,7 @@ def push_items(cli, num_items=30, start_index=None):
             break
 
         cli.privmsg(config['gamebot'], "#pushall {0}".format(pos))
-        time.sleep(1)
+        time.sleep(FLOOD_PROTECTION)
 
     HALT_LOOPS = False
 
@@ -230,7 +251,7 @@ def sell_items(cli, num_items=30, start_index=None):
             break
 
         cli.privmsg(config['gamebot'], "#sellall {0}".format(pos))
-        time.sleep(1)
+        time.sleep(FLOOD_PROTECTION)
 
     HALT_LOOPS = False
 
@@ -245,7 +266,7 @@ def loop(cli, action, to_word, from_word=1):
             break
 
         cli.privmsg(config['gamebot'], "{0} {1}".format(action, word_num))
-        time.sleep(1)
+        time.sleep(FLOOD_PROTECTION)
 
     HALT_LOOPS = False
 
@@ -383,6 +404,8 @@ def completer(_, state):
             ],
         '$autoplay':
             ['0', '1', 'on', 'off', '', ],
+        '$do_inv':
+            ['pushall', 'sellall', ],
         '$go ':
             places,
         '$loop ':
@@ -468,7 +491,7 @@ def completer(_, state):
 
 
 def process_user_input(cli, cmdline, priv=False):
-    global task
+    global task, INV_DOING
 
     cmd, args = split_cmdline(cmdline)
     l_cmd = cmd.lower()
@@ -478,6 +501,7 @@ def process_user_input(cli, cmdline, priv=False):
     if l_cmd == '$help':
         msg = "\n\n" \
               "$go (text):                     Force going to given destination.\n" \
+              "$do_inv (cmd) (text):           Search inventory for (text) and do (cmd) on found items.\n" \
               "$show_task:                     Show current detination.\n" \
               "$reset_task:                    Reset current detination.\n" \
               "$loop (action) (int) [int]:     Loop (action) with args from [int -- default 1] to (int).\n" \
@@ -548,6 +572,12 @@ def process_user_input(cli, cmdline, priv=False):
         else:
             # Force an exception to print current value
             parse_config(cli, l_cmd[5:], None, int)
+
+    elif l_cmd == '$do_inv' and len(args) >= 2:
+        # Store what we are doing on what inventory search
+        # First arg is action, second is search parameter
+        INV_DOING = l_args[:2]
+        cli.privmsg(config['gamebot'], '#i {0}'.format(INV_DOING[1]))
 
     elif l_cmd == '$push_items':
         num = 30
