@@ -55,8 +55,14 @@ def on_privmsg(cli, event):
 
     msg = event.arguments[0].replace('\x02', '')
 
+    # if anyone other than the bot or the admin messages us,
+    # send him/her the away message
+    if event.target not in [config['gamebot'], config['admin'], ]:
+        cli.privmsg(event.target, config['away'])
+        return
+
     # Always autofight
-    if event.target == config['gamebot']:
+    elif event.target == config['gamebot']:
         if "You ENCOUNTER" in msg or 'You are fighting against' in msg:
             fight_start(cli, event)
             return

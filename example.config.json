@@ -1,6 +1,7 @@
 {
     "admin": "shepherd0",
     "autoplay": true,
+    "away": "I'm sorry, I'm a bot... I can't help you :)",
     "gamebot": "Lamb3",
     "heal_index": 1,
     "hp_critical": 7,
