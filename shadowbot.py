@@ -185,11 +185,11 @@ def check_auth(cli, _):
         cli.privmsg(config['gamebot'], "#p")
 
 
-def deauth():
-    hira.removehandler("privmsg", on_privmsg)
+def deauth(cli, _):
+    cli.removehandler("privmsg", on_privmsg)
 
-    hira.addhandler("whoisuser", on_whoisuser_reply)
-    hira.addhandler("registerednick", on_registerednick)
+    cli.addhandler("whoisuser", on_whoisuser_reply)
+    cli.addhandler("registerednick", on_registerednick)
 
 
 def goto_destination(destination, cli, _, forced=False):
@@ -636,7 +636,7 @@ def connection_check():
     while not QUIT_SIGNAL:
         if not hira.connected:
             HALT_LOOPS = True
-            deauth()
+            deauth(hira, None)
             hira.connect()
         time.sleep(1)
 
@@ -676,6 +676,7 @@ if __name__ == '__main__':
     hira.addhandler("privnotice", on_privnotice)
     hira.addhandler("whoisuser", on_whoisuser_reply)
     hira.addhandler("registerednick", on_registerednick)
+    hira.addhandler("disconnect", deauth)
 
     # Start a backgroudn thread checking that the connection is alive
     t = threading.Thread(target=connection_check)
