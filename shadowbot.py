@@ -21,7 +21,7 @@ QUIT_SIGNAL = False
 HALT_LOOPS = False
 INV_DOING = None
 
-FLOOD_PROTECTION = 1
+FLOOD_PROTECTION = 1  # waiting secs between commands in loops
 
 authlist = set()
 enemies = []
@@ -48,6 +48,15 @@ def on_privnotice(cli, event):
         cli.whois(config['nickserv'])
         cli.whois(config['gamebot'])
         return
+
+
+def on_disconnect(cli, _):
+    global HALT_LOOPS
+    HALT_LOOPS = True
+    cli.removehandler("privmsg", on_privmsg)
+
+    cli.addhandler("whoisuser", on_whoisuser_reply)
+    cli.addhandler("registerednick", on_registerednick)
 
 
 def on_privmsg(cli, event):
@@ -185,13 +194,6 @@ def check_auth(cli, _):
         cli.privmsg(config['gamebot'], "#p")
 
 
-def deauth(cli, _):
-    cli.removehandler("privmsg", on_privmsg)
-
-    cli.addhandler("whoisuser", on_whoisuser_reply)
-    cli.addhandler("registerednick", on_registerednick)
-
-
 def goto_destination(destination, cli, _, forced=False):
     global task
     if task is None or forced:
@@ -231,7 +233,6 @@ def got_to_store(cli, _):
 
 
 def push_items(cli, num_items=30, start_index=None):
-    global HALT_LOOPS
 
     pos = config['ridding_index'] if start_index is None else start_index
     for _ in range(num_items):
@@ -243,11 +244,8 @@ def push_items(cli, num_items=30, start_index=None):
         cli.privmsg(config['gamebot'], "#pushall {0}".format(pos))
         time.sleep(FLOOD_PROTECTION)
 
-    HALT_LOOPS = False
-
 
 def sell_items(cli, num_items=30, start_index=None):
-    global HALT_LOOPS
 
     pos = config['ridding_index'] if start_index is None else start_index
     for _ in range(num_items):
@@ -259,11 +257,8 @@ def sell_items(cli, num_items=30, start_index=None):
         cli.privmsg(config['gamebot'], "#sellall {0}".format(pos))
         time.sleep(FLOOD_PROTECTION)
 
-    HALT_LOOPS = False
-
 
 def loop(cli, action, to_word, from_word=1):
-    global HALT_LOOPS
 
     for word_num in range(from_word, to_word + 1):
 
@@ -273,8 +268,6 @@ def loop(cli, action, to_word, from_word=1):
 
         cli.privmsg(config['gamebot'], "{0} {1}".format(action, word_num))
         time.sleep(FLOOD_PROTECTION)
-
-    HALT_LOOPS = False
 
 
 def pop_items(cli, num_items=30, start_index=None):
@@ -632,11 +625,10 @@ def process_user_input(cli, cmdline, priv=False):
 
 
 def connection_check():
-    global HALT_LOOPS
     while not QUIT_SIGNAL:
         if not hira.connected:
-            HALT_LOOPS = True
-            deauth(hira, None)
+            on_disconnect(hira, None)
+            time.sleep(3)
             hira.connect()
         time.sleep(1)
 

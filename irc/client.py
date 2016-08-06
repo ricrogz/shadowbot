@@ -281,25 +281,26 @@ class IRCClient:
             self.handlers[action]
         except KeyError:
             self.handlers[action] = []
+
+        # If we have an identical handler, skip adding
+        for handler in self.handlers[action]:
+            if handler['blocking'] == blocking and \
+                handler['action'] == action and \
+                    handler['callback'] == callback:
+                return
+
         self.handlers[action].append({'blocking': blocking,
                                       'action': action,
-                                      'callback': callback})
-
-        seen = set()
-        new_l = []
-        for d in self.handlers[action]:
-            t = tuple(d.items())
-            if t not in seen:
-                seen.add(t)
-                new_l.append(d)
-
-        self.handlers[action] = new_l
+                                      'callback': callback
+                                      })
 
     def removehandler(self, action, callback, blocking=False):
         if action in self.handlers:
             for ihandler in range(len(self.handlers[action])):
                 hnd = self.handlers[action][ihandler]
-                if hnd['action'] == action and hnd['callback'] == callback and hnd['blocking'] == blocking:
+                if hnd['action'] == action and \
+                    hnd['callback'] == callback and \
+                        hnd['blocking'] == blocking:
                     del self.handlers[action]
 
     def send(self, raw, urgent=False):
