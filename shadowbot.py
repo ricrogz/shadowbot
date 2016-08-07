@@ -668,7 +668,7 @@ if __name__ == '__main__':
     hira.addhandler("privnotice", on_privnotice)
     hira.addhandler("whoisuser", on_whoisuser_reply)
     hira.addhandler("registerednick", on_registerednick)
-    hira.addhandler("disconnect", deauth)
+    hira.addhandler("disconnect", on_disconnect)
 
     # Start a backgroudn thread checking that the connection is alive
     t = threading.Thread(target=connection_check)
