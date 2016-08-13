@@ -60,7 +60,7 @@ def on_disconnect(cli, _):
 
 
 def on_privmsg(cli, event):
-    global task, INV_DOING
+    global task, INV_DOING, HALT_LOOPS
 
     msg = event.arguments[0].replace('\x02', '')
 
@@ -140,8 +140,12 @@ def on_privmsg(cli, event):
 
         elif msg.endswith('but it seems you know every single corner of it.') \
                 or msg.endswith('but could not find anything new.') \
-                or msg.startswith('You are ready to go.') or msg.startswith('You are outside of'):
+                or msg.startswith('You are outside of'):
             cli.privmsg(config['gamebot'], "#we")
+
+        elif msg.startswith('You are ready to go.'):
+            cli.privmsg(config['gamebot'], "#cast teleportii forest_hut")
+            cli.privmsg(config['gamebot'], "#enter")
 
         elif msg.startswith("You meet") and len(config['say_to_folks'].strip()):
                 cli.privmsg(config['gamebot'], config['say_to_folks'])
@@ -156,8 +160,16 @@ def on_privmsg(cli, event):
                 got_to_hotel(cli, event)
             elif config['rid_mode'] == 'bank' and "Bank" in msg:
                 got_to_bank(cli, event)
-            elif config['rid_mode'] == 'store' and "Store" in msg:
+            elif config['rid_mode'] == 'store' and ("Store" in msg or 'hut' in msg):
                 got_to_store(cli, event)
+
+        elif " items that could not be sold." in msg:
+            config['ridding_index'] += 1
+
+        elif msg.startswith('Invalid range'):
+            HALT_LOOPS = True
+            time.sleep(3)
+            HALT_LOOPS = False
 
 
 def parse_config(cli, cfg, value, cast):
@@ -198,12 +210,20 @@ def goto_destination(destination, cli, _, forced=False):
     global task
     if task is None or forced:
         task = destination.lower()
+
+        """
         if config['teleport']:
             cli.privmsg(config['gamebot'], "#stop")  # required by low-level teleport
             cli.privmsg(config['gamebot'], "#cast teleport {0}".format(task))
             cli.privmsg(config['gamebot'], "#enter")
         else:
             cli.privmsg(config['gamebot'], "#goto {0}".format(task))
+        """
+
+        cli.privmsg(config['gamebot'], "#stop")  # required by low-level teleport
+        cli.privmsg(config['gamebot'], "#cast teleportii seattle_hotel")
+        cli.privmsg(config['gamebot'], "#enter")
+
         return True
     return False
 
@@ -234,27 +254,27 @@ def got_to_store(cli, _):
 
 def push_items(cli, num_items=30, start_index=None):
 
-    pos = config['ridding_index'] if start_index is None else start_index
     for _ in range(num_items):
 
         # break loop if we disconnect
         if HALT_LOOPS:
             break
 
-        cli.privmsg(config['gamebot'], "#pushall {0}".format(pos))
+        cli.privmsg(config['gamebot'], "#pushall {0}"
+                    .format(config['ridding_index'] if start_index is None else start_index))
         time.sleep(FLOOD_PROTECTION)
 
 
 def sell_items(cli, num_items=30, start_index=None):
 
-    pos = config['ridding_index'] if start_index is None else start_index
     for _ in range(num_items):
 
         # break loop if we disconnect
         if HALT_LOOPS:
             break
 
-        cli.privmsg(config['gamebot'], "#sellall {0}".format(pos))
+        cli.privmsg(config['gamebot'], "#sellall {0}"
+                    .format(config['ridding_index'] if start_index is None else start_index))
         time.sleep(FLOOD_PROTECTION)
 
 
