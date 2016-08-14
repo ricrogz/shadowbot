@@ -15,6 +15,7 @@ import readline
 ENEMY_STATS_REGEX = re.compile(r'\(([\-.\d]+)m\)\(L(\d+)(\((\d+)\))?\)')
 HP_REGEX = re.compile(r'\d+-(.+?)\((.+?)/(.+?)\)')
 WE_REGEX = re.compile(r'\d+-(.+?)\((.+?)kg/(.+?)kg\)')
+MONEY_REGEX = re.compile(r', ¥:(\d+\.\d+), ')
 ITEMLIST_REGEX = r'(?: (\d+)-[^,.]+{0}[^,.]+[,.])+'
 CRITICAL_REGEX = r'.+ attacks \d+-{0}.+and caused [\d.]+ damage, ([\d.]+)/\d+HP left'
 QUIT_SIGNAL = False
@@ -140,7 +141,22 @@ def on_privmsg(cli, event):
 
         elif msg.endswith('but it seems you know every single corner of it.') \
                 or msg.endswith('but could not find anything new.') \
-                or msg.startswith('You are ready to go.') or msg.startswith('You are outside of'):
+                or msg.startswith('You are outside of'):
+            cli.privmsg(config['gamebot'], "#we")
+
+        elif msg.startswith('You are ready to go.'):
+            cli.privmsg(config['gamebot'], "#s")
+
+        elif MONEY_REGEX.search(msg):
+            money = float(MONEY_REGEX.search(msg).group(1))
+
+            # Reserve some pocket cash and calculate amount to push
+            money -= 1000.
+            amount = int(money // 10000.) * 10000 + 50
+
+            # Push, wait a momento, and go
+            cli.privmsg(config['gamebot'], "#use stick pushy {0:d}".format(amount))
+            time.sleep(0.5)
             cli.privmsg(config['gamebot'], "#we")
 
         elif msg.startswith("You meet") and len(config['say_to_folks'].strip()):
