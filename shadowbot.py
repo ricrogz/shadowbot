@@ -145,34 +145,38 @@ def on_privmsg(cli, event):
             cli.privmsg(config['gamebot'], "#we")
 
         elif msg.startswith('You are ready to go.'):
-            cli.privmsg(config['gamebot'], "#s")
+            cli.privmsg(config['gamebot'], "#we")
 
-        elif MONEY_REGEX.search(msg):
+        elif task == 'hotel' and MONEY_REGEX.search(msg):
+
+            reset_task(task)
+
             money = float(MONEY_REGEX.search(msg).group(1))
 
             # Reserve some pocket cash and calculate amount to push
             money -= 1000.
-            amount = int(money // 10000.) * 10000 + 50
 
-            # Push, wait a momento, and go
-            cli.privmsg(config['gamebot'], "#use stick pushy {0:d}".format(amount))
-            time.sleep(0.5)
-            cli.privmsg(config['gamebot'], "#we")
+            if money > 10000.:
+                amount = int(money // 10000.) * 10000 + 50
+
+                # Push, wait a momento, and go
+                cli.privmsg(config['gamebot'], "#use stick pushy {0:d}".format(amount))
+                time.sleep(0.5)
+
+            cli.privmsg(config['gamebot'], "#sleep")
 
         elif msg.startswith("You meet") and len(config['say_to_folks'].strip()):
                 cli.privmsg(config['gamebot'], config['say_to_folks'])
 
         elif msg.startswith("You are already in") or msg.startswith("You enter the"):
 
-            # Reset task
-            if task is not None and task in msg.lower():
-                task = None
-
             if "Hotel" in msg:
                 got_to_hotel(cli, event)
             elif config['rid_mode'] == 'bank' and "Bank" in msg:
+                reset_task(msg)
                 got_to_bank(cli, event)
             elif config['rid_mode'] == 'store' and "Store" in msg:
+                reset_task(msg)
                 got_to_store(cli, event)
 
         elif " items that could not be sold." in msg:
@@ -183,6 +187,14 @@ def on_privmsg(cli, event):
             time.sleep(3)
             HALT_LOOPS = False
             cli.privmsg(config['gamebot'], "#we")
+
+
+def reset_task(msg):
+    global task
+
+    # Reset task
+    if task is not None and task in msg.lower():
+        task = None
 
 
 def parse_config(cli, cfg, value, cast):
@@ -244,7 +256,7 @@ def goto_mission(cli, _):
 
 
 def got_to_hotel(cli, _):
-    cli.privmsg(config['gamebot'], "#sleep")
+    cli.privmsg(config['gamebot'], "#s")
 
 
 def got_to_bank(cli, _):
