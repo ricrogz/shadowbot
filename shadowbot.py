@@ -239,6 +239,7 @@ def goto_destination(destination, cli, _, forced=False):
             cli.privmsg(config['gamebot'], "#stop")  # required by low-level teleport
             cli.privmsg(config['gamebot'], "#cast teleport {0}".format(task))
             cli.privmsg(config['gamebot'], "#enter")
+            time.sleep(10)
         else:
             cli.privmsg(config['gamebot'], "#goto {0}".format(task))
         return True
@@ -261,11 +262,13 @@ def got_to_hotel(cli, _):
 
 def got_to_bank(cli, _):
     push_items(cli)
+    time.sleep(10)
     cli.privmsg(config['gamebot'], "#we")
 
 
 def got_to_store(cli, _):
     sell_items(cli)
+    time.sleep(10)
     cli.privmsg(config['gamebot'], "#we")
 
 
