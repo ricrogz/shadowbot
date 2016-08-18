@@ -15,7 +15,7 @@ import readline
 ENEMY_STATS_REGEX = re.compile(r'\(([\-.\d]+)m\)\(L(\d+)(\((\d+)\))?\)')
 HP_REGEX = re.compile(r'\d+-(.+?)\((.+?)/(.+?)\)')
 WE_REGEX = re.compile(r'\d+-(.+?)\((.+?)kg/(.+?)kg\)')
-MONEY_REGEX = re.compile(r', ¥:(\d+\.\d+), ')
+MONEY_REGEX = re.compile(r', ¥:(\d+(?:.\d+)?), ')
 ITEMLIST_REGEX = r'(?: (\d+)-[^,.]+{0}[^,.]+[,.])+'
 CRITICAL_REGEX = r'.+ attacks \d+-{0}.+and caused [\d.]+ damage, ([\d.]+)/\d+HP left'
 QUIT_SIGNAL = False
