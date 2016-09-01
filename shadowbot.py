@@ -21,12 +21,30 @@ CRITICAL_REGEX = r'.+ attacks \d+-{0}.+and caused [\d.]+ damage, ([\d.]+)/\d+HP 
 QUIT_SIGNAL = False
 HALT_LOOPS = False
 INV_DOING = None
+IN_LOOP = False
 
 FLOOD_PROTECTION = 1  # waiting secs between commands in loops
 
 authlist = set()
 enemies = []
 task = None
+
+
+def create_connection():
+    _hira = client.IRCClient('')
+    _hira.configure(server=config['server'],
+                    port=config['port'],
+                    nick=config['nick'],
+                    ident=config['nick'],
+                    reconnects=0,
+                    # gecos="Butts."
+                    )
+
+    # Register basic event processing
+    _hira.addhandler("privnotice", on_privnotice)
+    _hira.addhandler("whoisuser", on_whoisuser_reply)
+    _hira.addhandler("registerednick", on_registerednick)
+    return _hira
 
 
 def on_whoisuser_reply(cli, event):
@@ -51,17 +69,8 @@ def on_privnotice(cli, event):
         return
 
 
-def on_disconnect(cli, _):
-    global HALT_LOOPS
-    HALT_LOOPS = True
-    cli.removehandler("privmsg", on_privmsg)
-
-    cli.addhandler("whoisuser", on_whoisuser_reply)
-    cli.addhandler("registerednick", on_registerednick)
-
-
 def on_privmsg(cli, event):
-    global task, INV_DOING, HALT_LOOPS
+    global task, INV_DOING, HALT_LOOPS, IN_LOOP
 
     msg = event.arguments[0].replace('\x02', '')
 
@@ -73,9 +82,15 @@ def on_privmsg(cli, event):
 
     # Always autofight
     elif event.target == config['gamebot']:
+
+        # Ignore any old messages
+        if msg.startswith('Old message'):
+            return
+
         if "You ENCOUNTER" in msg or 'You are fighting against' in msg:
             fight_start(cli, event)
             return
+
         elif " and killed them with " in msg:
             fight_next(cli, event)
             return
@@ -147,9 +162,13 @@ def on_privmsg(cli, event):
         elif msg.startswith('You are ready to go.'):
             cli.privmsg(config['gamebot'], "#we")
 
-        elif task == 'hotel' and MONEY_REGEX.search(msg):
-
+        elif msg.startswith('You respawn at'):
             reset_task(task)
+            cli.privmsg(config['gamebot'], "#sleep")
+
+        elif task == 'sleep' and MONEY_REGEX.search(msg):
+
+            reset_task('sleep')
 
             money = float(MONEY_REGEX.search(msg).group(1))
 
@@ -171,6 +190,8 @@ def on_privmsg(cli, event):
         elif msg.startswith("You are already in") or msg.startswith("You enter the"):
 
             if "Hotel" in msg:
+                reset_task(msg)
+                task = 'sleep'
                 got_to_hotel(cli, event)
             elif config['rid_mode'] == 'bank' and "Bank" in msg:
                 reset_task(msg)
@@ -182,11 +203,11 @@ def on_privmsg(cli, event):
         elif " items that could not be sold." in msg:
             config['ridding_index'] += 1
 
-        elif msg.startswith('Invalid range'):
+        elif IN_LOOP and msg.startswith('Invalid range'):
             HALT_LOOPS = True
+            IN_LOOP = False
             time.sleep(3)
             HALT_LOOPS = False
-            cli.privmsg(config['gamebot'], "#we")
 
 
 def reset_task(msg):
@@ -273,7 +294,9 @@ def got_to_store(cli, _):
 
 
 def push_items(cli, num_items=30, start_index=None):
+    global IN_LOOP
 
+    IN_LOOP = True
     for _ in range(num_items):
 
         # break loop if we disconnect
@@ -283,10 +306,13 @@ def push_items(cli, num_items=30, start_index=None):
         cli.privmsg(config['gamebot'], "#pushall {0}"
                     .format(config['ridding_index'] if start_index is None else start_index))
         time.sleep(FLOOD_PROTECTION)
+    IN_LOOP = False
 
 
 def sell_items(cli, num_items=30, start_index=None):
+    global IN_LOOP
 
+    IN_LOOP = True
     for _ in range(num_items):
 
         # break loop if we disconnect
@@ -296,10 +322,13 @@ def sell_items(cli, num_items=30, start_index=None):
         cli.privmsg(config['gamebot'], "#sellall {0}"
                     .format(config['ridding_index'] if start_index is None else start_index))
         time.sleep(FLOOD_PROTECTION)
+    IN_LOOP = False
 
 
 def loop(cli, action, to_word, from_word=1):
+    global IN_LOOP
 
+    IN_LOOP = True
     for word_num in range(from_word, to_word + 1):
 
         # break loop if we disconnect
@@ -308,6 +337,7 @@ def loop(cli, action, to_word, from_word=1):
 
         cli.privmsg(config['gamebot'], "{0} {1}".format(action, word_num))
         time.sleep(FLOOD_PROTECTION)
+    IN_LOOP = False
 
 
 def pop_items(cli, num_items=30, start_index=None):
@@ -660,14 +690,24 @@ def process_user_input(cli, cmdline, priv=False):
             pass
         loop(cli, args[0], to_word, from_word)
 
+    elif l_cmd == '$force_auth':
+        cli.privmsg(config['gamebot'], ".login {0}".format(config['password']))
+
+        authlist.add(config['gamebot'])
+        authlist.add(config['nickserv'])
+
+        check_auth(cli, None)
+
     elif cmdline:
         cli.privmsg(config['gamebot'], cmdline)
 
 
 def connection_check():
+    global hira, HALT_LOOPS
     while not QUIT_SIGNAL:
-        if not hira.connected:
-            on_disconnect(hira, None)
+        if not hira or not hira.connected:
+            HALT_LOOPS = True
+            hira = create_connection()
             time.sleep(3)
             hira.connect()
         time.sleep(1)
@@ -694,23 +734,8 @@ if __name__ == '__main__':
     readline.set_completer(completer)
     readline.parse_and_bind('tab: complete')
 
-    # Create irc connection
+    # Start a background thread to handle connextion
     hira = client.IRCClient('')
-    hira.configure(server=config['server'],
-                   port=config['port'],
-                   nick=config['nick'],
-                   ident=config['nick'],
-                   reconnects=0,
-                   # gecos="Butts."
-                   )
-
-    # Register basic event processing
-    hira.addhandler("privnotice", on_privnotice)
-    hira.addhandler("whoisuser", on_whoisuser_reply)
-    hira.addhandler("registerednick", on_registerednick)
-    hira.addhandler("disconnect", on_disconnect)
-
-    # Start a backgroudn thread checking that the connection is alive
     t = threading.Thread(target=connection_check)
     t.daemon = True
     t.start()
