@@ -16,12 +16,18 @@ ENEMY_STATS_REGEX = re.compile(r'\(([\-.\d]+)m\)\(L(\d+)(\((\d+)\))?\)')
 HP_REGEX = re.compile(r'\d+-(.+?)\((.+?)/(.+?)\)')
 WE_REGEX = re.compile(r'\d+-(.+?)\((.+?)kg/(.+?)kg\)')
 MONEY_REGEX = re.compile(r', ¥:(\d+(?:.\d+)?), ')
+INV_REGEX = re.compile(r'^Your Inventory, page 1.+ 3-IDCard(?:\((\d+)\))?, '
+                       '4-ID4Card(?:\((\d+)\))?, 5-ElectricParts(?:\((\d+)\))?, '
+                       '6-MilitaryCircuits(?:\((\d+)\))?, ')
 ITEMLIST_REGEX = r'(?: (\d+)-[^,.]+{0}[^,.]+[,.])+'
 CRITICAL_REGEX = r'.+ attacks \d+-{0}.+and caused [\d.]+ damage, ([\d.]+)/\d+HP left'
 QUIT_SIGNAL = False
 HALT_LOOPS = False
 INV_DOING = None
 IN_LOOP = False
+INV_ITEMS = {'a': None, 'b': None, 'c': None, 'd': None}
+INV_KEEPS = (1, 10, 1, 1)
+
 
 FLOOD_PROTECTION = 1  # waiting secs between commands in loops
 
@@ -70,7 +76,7 @@ def on_privnotice(cli, event):
 
 
 def on_privmsg(cli, event):
-    global task, INV_DOING, HALT_LOOPS, IN_LOOP
+    global task, INV_DOING, HALT_LOOPS, IN_LOOP, INV_ITEMS
 
     msg = event.arguments[0].replace('\x02', '')
 
@@ -162,9 +168,23 @@ def on_privmsg(cli, event):
         elif msg.startswith('You are ready to go.'):
             cli.privmsg(config['gamebot'], "#we")
 
-        elif msg.startswith('You respawn at'):
+        elif msg.startswith('You respawn'):
             reset_task(task)
             cli.privmsg(config['gamebot'], "#sleep")
+
+        elif msg.startswith('Your Inventory, page 1'):
+            inventory = INV_REGEX.match(msg)
+
+            if inventory:
+                items = ('IDCard', 'ID4Card', 'ElectricParts', 'MilitaryCircuits')
+
+                inventory = inventory.groups()
+
+                INV_ITEMS = {}
+                for i, j, k in zip(items, inventory, INV_KEEPS):
+                    if j is not None:
+                        j = int(j)
+                        INV_ITEMS[i] = j - k if j > k else None
 
         elif task == 'sleep' and MONEY_REGEX.search(msg):
 
@@ -181,6 +201,13 @@ def on_privmsg(cli, event):
                 # Push, wait a momento, and go
                 cli.privmsg(config['gamebot'], "#use stick pushy {0:d}".format(amount))
                 time.sleep(0.5)
+
+            for i, j in INV_ITEMS.items():
+                if j is not None:
+                    cli.privmsg(config['gamebot'], "#drop {} {}".format(i, j))
+
+            cli.privmsg(config['gamebot'], "#drop copcap")
+            config['ridding_index'] = 7
 
             cli.privmsg(config['gamebot'], "#sleep")
 
@@ -378,6 +405,7 @@ def fight_next(cli, _):
         cli.privmsg(config['gamebot'], "#use scanner {0}".format(enemy[3]))
     else:
         cli.privmsg(config['gamebot'], "#we")
+        cli.privmsg(config['gamebot'], "#i")
 
 
 def heal_self(cli, _):
