@@ -10,6 +10,8 @@ import threading
 import irc.client as client
 import readline
 
+from collections import deque
+
 # import urwid # to build an UI  (TO DO)
 
 ENEMY_STATS_REGEX = re.compile(r'\(([\-.\d]+)m\)\(L(\d+)(\((\d+)\))?\)')
@@ -28,6 +30,8 @@ IN_LOOP = False
 INV_ITEMS = {'a': None, 'b': None, 'c': None, 'd': None}
 INV_KEEPS = (1, 10, 1, 1)
 
+# buffer to store last 20 received messages
+LASTLOG = deque(maxlen=20)
 
 FLOOD_PROTECTION = 1  # waiting secs between commands in loops
 
@@ -76,9 +80,12 @@ def on_privnotice(cli, event):
 
 
 def on_privmsg(cli, event):
-    global task, INV_DOING, HALT_LOOPS, IN_LOOP, INV_ITEMS
+    global task, INV_DOING, HALT_LOOPS, IN_LOOP, INV_ITEMS, LASTLOG
 
     msg = event.arguments[0].replace('\x02', '')
+
+    # add message to log
+    LASTLOG.append(time.strftime('%Y-%m-%d %H:%M:%S ') + msg)
 
     # if anyone other than the bot or the admin messages us,
     # send him/her the away message
@@ -505,6 +512,8 @@ def completer(_, state):
             ['pushall', 'sellall', ],
         '$go ':
             places,
+        '$log ':
+            [],
         '$loop ':
             ['pushall', 'sellall', 'talk', ],
         '$pop_items':
@@ -617,6 +626,7 @@ def process_user_input(cli, cmdline, priv=False):
               "$pop_items [num] [bank_index]:  Retrieve 'num' items starting from 'bank_index'" \
               " or first as default.\n" \
               "$raw (text):                    Send raw command to server.\n\n" \
+              "$log                            Show up to the last 20 received messages.\n\n" \
               "$quit:                          Disconnect from irc and exit program.\n\n" \
               "Any other command will be sent to {0} as PRIVMSG.\n\n".format(config['gamebot'])
 
@@ -701,6 +711,9 @@ def process_user_input(cli, cmdline, priv=False):
 
     elif l_cmd == '$quit':
         raise KeyboardInterrupt
+
+    elif l_cmd == '$log':
+        print('\n\nLast messages:\n\t' + '\n\t'.join(LASTLOG) + '\n\n')
 
     elif l_cmd == '$loop' and len(args) > 1:
 
