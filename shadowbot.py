@@ -16,6 +16,7 @@ from collections import deque
 
 ENEMY_STATS_REGEX = re.compile(r'\(([\-.\d]+)m\)\(L(\d+)(\((\d+)\))?\)')
 HP_REGEX = re.compile(r'\d+-(.+?)\((.+?)/(.+?)\)')
+MP_REGEX = re.compile(r'\d+-(.+?)\((.+?)/(.+?)\)')
 WE_REGEX = re.compile(r'\d+-(.+?)\((.+?)kg/(.+?)kg\)')
 MONEY_REGEX = re.compile(r', ¥:(\d+(?:.\d+)?), ')
 INV_REGEX = re.compile(r'^Your Inventory, page 1.+ 3-IDCard(?:\((\d+)\))?, '
@@ -153,6 +154,21 @@ def on_privmsg(cli, event):
             # If everyone is ok, we resume our mission
             goto_mission(cli, event)
 
+        elif msg.startswith("Your parties MP"):
+            for jug in MP_REGEX.findall(msg):
+
+                # This one is absolute!
+                # totes = (float(jug[1])/float(jug[2]))*100
+
+                # If anyone is low on MP, and we do not have a task, go to rest
+                if float(jug[1]) < config['mp_sleep'] and goto_destination('hotel', cli, event):
+                    cli.privmsg(config['gamebot'],
+                                "Going to rest because {0} is low on MP".format(jug[0]))
+                    return
+
+            # If everyone is ok, we resume our mission
+            cli.privmsg(config['gamebot'], "#hp")
+
         elif msg.startswith("Your party carries"):
             for jug in WE_REGEX.findall(msg):
                 totes = (float(jug[1])/float(jug[2]))*100.
@@ -165,7 +181,7 @@ def on_privmsg(cli, event):
                     return
 
             # If nobody is overloaded, we check HP
-            cli.privmsg(config['gamebot'], "#hp")
+            cli.privmsg(config['gamebot'], "#mp")
 
         elif msg.endswith('but it seems you know every single corner of it.') \
                 or msg.endswith('but could not find anything new.') \
@@ -416,7 +432,8 @@ def fight_next(cli, _):
 
 
 def heal_self(cli, _):
-    cli.privmsg(config['gamebot'], "#use {0}".format(config['heal_index']))
+    # cli.privmsg(config['gamebot'], "#use {0}".format(config['heal_index']))
+    cli.privmsg(config['gamebot'], "#cast heal")
 
 
 def completer(_, state):
