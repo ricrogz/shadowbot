@@ -30,6 +30,7 @@ INV_DOING = None
 IN_LOOP = False
 INV_ITEMS = {'a': None, 'b': None, 'c': None, 'd': None}
 INV_KEEPS = (1, 10, 1, 1)
+CASTING = False
 
 # buffer to store last 20 received messages
 LASTLOG = deque(maxlen=20)
@@ -81,7 +82,7 @@ def on_privnotice(cli, event):
 
 
 def on_privmsg(cli, event):
-    global task, INV_DOING, HALT_LOOPS, IN_LOOP, INV_ITEMS, LASTLOG
+    global task, INV_DOING, HALT_LOOPS, IN_LOOP, INV_ITEMS, LASTLOG, CASTING
 
     msg = event.arguments[0].replace('\x02', '')
 
@@ -103,6 +104,10 @@ def on_privmsg(cli, event):
 
         if "You ENCOUNTER" in msg or 'You are fighting against' in msg:
             fight_start(cli, event)
+            return
+
+        elif " vulcano on " in msg:
+            cli.privmsg(config['gamebot'], "#p")
             return
 
         elif " and killed them with " in msg:
@@ -185,13 +190,17 @@ def on_privmsg(cli, event):
 
         elif msg.endswith('but it seems you know every single corner of it.') \
                 or msg.endswith('but could not find anything new.') \
-                or msg.startswith('You are outside of'):
+                or msg.startswith('You are outside of') \
+                or msg.startswith('You continue exploring'):
+            cli.privmsg(config['gamebot'], "#i")
             cli.privmsg(config['gamebot'], "#we")
 
         elif msg.startswith('You are ready to go.'):
+            CASTING = False
             cli.privmsg(config['gamebot'], "#we")
 
         elif msg.startswith('You respawn'):
+            CASTING = False
             reset_task(task)
             cli.privmsg(config['gamebot'], "#sleep")
 
@@ -258,6 +267,10 @@ def on_privmsg(cli, event):
             IN_LOOP = False
             time.sleep(3)
             HALT_LOOPS = False
+
+        elif CASTING and msg.startswith(config['nick']) and "casts a level " in msg \
+                and "heal on {}".format(config['nick']):
+            CASTING = False
 
 
 def reset_task(msg):
@@ -417,23 +430,32 @@ def fight_start(cli, event):
     cli.privmsg(config['gamebot'], "Luchando contra:")
     for enemy in enemies:
         cli.privmsg(config['gamebot'], "    {0}".format(str(enemy)))
+
     fight_next(cli, event)
 
 
 def fight_next(cli, _):
     global enemies
-    if len(enemies):
+
+    if len(enemies) > 5:
+        cli.privmsg(config['gamebot'], "#cast vulcano")
+    elif len(enemies):
         enemy = enemies.pop(0)
         cli.privmsg(config['gamebot'], "#attack {0}".format(enemy[3]))
         cli.privmsg(config['gamebot'], "#use scanner {0}".format(enemy[3]))
+    """
     else:
         cli.privmsg(config['gamebot'], "#we")
         cli.privmsg(config['gamebot'], "#i")
+    """
 
 
 def heal_self(cli, _):
-    # cli.privmsg(config['gamebot'], "#use {0}".format(config['heal_index']))
-    cli.privmsg(config['gamebot'], "#cast heal")
+    global CASTING
+    if not CASTING:
+        # cli.privmsg(config['gamebot'], "#use {0}".format(config['heal_index']))
+        cli.privmsg(config['gamebot'], "#cast heal")
+        CASTING = True
 
 
 def completer(_, state):

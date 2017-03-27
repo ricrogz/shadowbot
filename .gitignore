@@ -1,5 +1,6 @@
 __pycache__*/
 .idea
+.sonar
 *.py[cod]
 config.json
 hispano.config.json

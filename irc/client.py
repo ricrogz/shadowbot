@@ -41,23 +41,28 @@ class IRCClient:
         self.ibuffer = LineBuffer()
         self.features = features.FeatureSet()
         self.lastping = time.time()
-        # self.addhandler("pubmsg", self._pubmsg)
 
         # Internal handlers used to get user/channel information
         self.addhandler("join", self._on_join)
-        # self.addhandler("currenttopic", self._on_topic)
-        # self.addhandler("topic", self._on_topic)
-        # self.addhandler("topicinfo", self._on_topicinfo)
-        # self.addhandler("whospcrpl", self._on_whox)
-        # self.addhandler("whoreply", self._on_who)
-        # self.addhandler("whoisloggedin", self._on_whoisaccount)
-        # self.addhandler("mode", self._on_mode)
-        # self.addhandler("quit", self._on_quit)
-        # self.addhandler("part", self._on_part)
-        # self.addhandler("kick", self._on_kick)
-        # self.addhandler("banlist", self._on_banlist)
-        # self.addhandler("kick", self._on_kick)
-        # self.addhandler("nick", self._on_nick)
+        """
+            Other possible handlers:
+            
+            self.addhandler("pubmsg", self._pubmsg)
+            self.addhandler("currenttopic", self._on_topic)
+            self.addhandler("topic", self._on_topic)
+            self.addhandler("topicinfo", self._on_topicinfo)
+            self.addhandler("whospcrpl", self._on_whox)
+            self.addhandler("whoreply", self._on_who)
+            self.addhandler("whoisloggedin", self._on_whoisaccount)
+            self.addhandler("mode", self._on_mode)
+            self.addhandler("quit", self._on_quit)
+            self.addhandler("part", self._on_part)
+            self.addhandler("kick", self._on_kick)
+            self.addhandler("banlist", self._on_banlist)
+            self.addhandler("kick", self._on_kick)
+            self.addhandler("nick", self._on_nick)
+            
+        """
 
         self.imayreconnect = True
 
@@ -111,11 +116,6 @@ class IRCClient:
         while self.connected:
             self._process_data()
             time.sleep(0.1)
-        if self.reconncount <= self.reconnects:
-            self.reconncount += 1
-            self.connect()
-        else:
-            self.imayreconnect = False
 
     def _processline(self, line):
         prefix = None
@@ -462,14 +462,12 @@ class IRCClient:
         prefixes = "".join("{!s}".format(k) for (k, v) in self.features.prefix.items())
         prefixes = prefixes.replace("+", "")
         for i in event.arguments[0]:
-            if i in prefixes:
+            if i in prefixes or \
+                i in self.features.chanmodes[0] or \
+                (i in self.features.chanmodes[1] and status == "+") or \
+                    (self.features.chanmodes[2] and status == "+"):
                 number += 1
-            elif i in self.features.chanmodes[0]:
-                number += 1
-            elif i in self.features.chanmodes[1] and status == "+":
-                number += 1
-            elif i in self.features.chanmodes[2] and status == "+":
-                number += 1
+
             if i == "+":
                 status = "+"
             elif i == "-":
