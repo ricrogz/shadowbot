@@ -194,9 +194,8 @@ class IRCClient:
                 target = arguments[0]
                 arguments = arguments[1:]
 
-            if command == "mode":
-                if not is_channel(target):
-                    command = "umode"
+            if command == "mode" and not is_channel(target):
+                command = "umode"
 
             self.logger.debug("command: %s, source: %s, target: %s, "
                               "arguments: %s", command, prefix, target, arguments)
@@ -424,7 +423,7 @@ class IRCClient:
                 "", "", account)
 
     def _on_topic(self, myself, event):
-        self.channels[event.arguments[0]].topicChange(event.source, event.arguments[1])
+        self.channels[event.arguments[0]].topic_change(event.source, event.arguments[1])
 
     def _on_topicinfo(self, myself, event):
         self.channels[event.arguments[0]].topicsetter = NickMask(event.arguments[1])
@@ -435,10 +434,9 @@ class IRCClient:
         # THE FOOKING SERVER DOESN'T SUPPORT WHOX >:O
         # Let's send a whois to get the goddamn account name
         self.whois(event.arguments[4])
-        self.channels[event.arguments[0].lower()].addUser(event)
+        self.channels[event.arguments[0].lower()].add_user(event)
 
     def _on_whoisaccount(self, myself, event):
-        # self.users[event.arguments[0].lower()].account = event.arguments[1]
         for i in self.channels:
             try:
                 self.channels[i].users[event.arguments[0].lower()].account = event.arguments[1]
@@ -506,7 +504,6 @@ class IRCClient:
             del self.channels[event.target].users[event.source.nick.lower()]
 
     def _on_quit(self, myself, event):
-        # del self.users[event.source.nick]
         for i in self.channels:
             try:
                 del self.channels[i].users[event.source.nick.lower()]
@@ -545,24 +542,15 @@ class Channel(object):
         self.quiets = []
         self.cli = client
         self.name = channelname
-        # try:
-        #   client.features.whox
-        #    client.who(channelname, "%tcuhnfar,08")
-        # except:
-        #    client.who(channelname)
-
-        # client.mode(channelname, "b")
-        # if "q" in client.features.chanmodes[0]:
-        #    client.mode(channelname, "q")
 
 
-    def topicChange(self, source, topic):
+    def topic_change(self, source, topic):
         self.topic = topic
         self.topicsetter = source
         self.topicsetterts = time.time()
 
 
-    def addUser(self, e):
+    def add_user(self, e):
         if e.arguments[0] == "08":
             self.users[e.arguments[4].lower()] = User(
                     e.arguments[4],
@@ -580,7 +568,6 @@ class Channel(object):
                     e.arguments[6][2:],
                     e.arguments[5]
                 )
-        # self.cli.users[e.arguments[4]] = self.users[e.arguments[4]]
 
     def __repr__(self):
         return "<Channel topic:'{0}', topicsetter:'{1}', topicsetterts:'{2}'" \
@@ -619,7 +606,7 @@ class User(object):
         return "<User nick:'{0}', ident:'{1}', host:'{2}', gecos: '{3}'" \
                ", op: '{4}', voiced: '{5}', account: '{6}'>" \
                 .format(self.nick, self.ident, self.host, self.gecos,
-                str(self.op), str(self.voiced), str(self.account))
+                    str(self.op), str(self.voiced), str(self.account))
 
 
 class Event(object):
@@ -650,9 +637,9 @@ class LineBuffer(object):
 
     def lines(self):
         try:
-            x = (line.decode('utf-8') for line in self._lines())
+            x = tuple([line.decode('utf-8') for line in self._lines()])
         except UnicodeDecodeError:
-            x = (line.decode('latin1') for line in self._lines())
+            x = tuple([line.decode('latin1') for line in self._lines()])
         return x
 
     def _lines(self):
@@ -789,27 +776,27 @@ class NickMask(str):
 
 class Ban:
     def __init__(self, mask, pts):
-        self.ban = mask
+        self.mask = mask
         self.ts = pts
 
     @property
     def nick(self):
-        return self.ban.split("!")[0]
+        return self.mask.split("!")[0]
 
     @property
     def userhost(self):
-        return self.ban.split("!")[1]
+        return self.mask.split("!")[1]
 
     @property
     def host(self):
-        return self.ban.split("@")[1]
+        return self.mask.split("@")[1]
 
     @property
     def user(self):
-        return self.ban.userhost.split("@")[0]
+        return self.mask.userhost.split("@")[0]
 
     def banmatches(self, nickmask):
-        ban = self.ban.replace("*", ".*").replace("?", ".?")
+        ban = self.mask.replace("*", ".*").replace("?", ".?")
         banregex = re.compile(ban)
         if banregex.match(nickmask):
             return True

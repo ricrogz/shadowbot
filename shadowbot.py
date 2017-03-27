@@ -12,8 +12,6 @@ import readline
 
 from collections import deque
 
-# import urwid # to build an UI  (TO DO)
-
 ENEMY_STATS_REGEX = re.compile(r'\(([\-.\d]+)m\)\(L(\d+)(\((\d+)\))?\)')
 HP_REGEX = re.compile(r'\d+-(.+?)\((.+?)/(.+?)\)')
 MP_REGEX = re.compile(r'\d+-(.+?)\((.+?)/(.+?)\)')
@@ -49,7 +47,6 @@ def create_connection():
                     nick=config['nick'],
                     ident=config['nick'],
                     reconnects=0,
-                    # gecos="Butts."
                     )
 
     # Register basic event processing

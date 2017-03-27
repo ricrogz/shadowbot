@@ -60,21 +60,21 @@ class FeatureSet(object):
         self.set(name, value)
 
     @staticmethod
-    def _parse_PREFIX(value):
+    def _parse_prefix(value):
         """channel user prefixes"""
         channel_modes, channel_chars = value.split(')')
         channel_modes = channel_modes[1:]
         return dict(list(zip(channel_chars, channel_modes)))
 
     @staticmethod
-    def _parse_CHANMODES(value):
+    def _parse_chanmodes(value):
         """channel mode letters"""
         return value.split(',')
 
     @staticmethod
-    def _parse_TARGMAX(value):
+    def _parse_targmax(value):
         """
-        >>> res = FeatureSet._parse_TARGMAX('a:3,c:,b:2')
+        >>> res = FeatureSet._parse_targmax('a:3,c:,b:2')
         >>> res['a']
         3
         """
@@ -82,9 +82,9 @@ class FeatureSet(object):
             for target in value.split(','))
 
     @staticmethod
-    def _parse_CHANLIMIT(value):
+    def _parse_chanlimit(value):
         """
-        >>> res = FeatureSet._parse_CHANLIMIT('ibe:250,xyz:100')
+        >>> res = FeatureSet._parse_chanlimit('ibe:250,xyz:100')
         >>> len(res)
         6
         >>> res['x']
@@ -98,7 +98,7 @@ class FeatureSet(object):
             for target_keys, number in pairs
             for target in target_keys
         )
-    _parse_MAXLIST = _parse_CHANLIMIT
+    _parse_maxlist = _parse_chanlimit
 
     @staticmethod
     def _parse_other(value):
