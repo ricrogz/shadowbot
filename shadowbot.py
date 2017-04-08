@@ -17,18 +17,19 @@ HP_REGEX = re.compile(r'\d+-(.+?)\((.+?)/(.+?)\)')
 MP_REGEX = re.compile(r'\d+-(.+?)\((.+?)/(.+?)\)')
 WE_REGEX = re.compile(r'\d+-(.+?)\((.+?)kg/(.+?)kg\)')
 MONEY_REGEX = re.compile(r', ¥:(\d+(?:.\d+)?), ')
-INV_REGEX = re.compile(r'^Your Inventory, page 1.+ 3-IDCard(?:\((\d+)\))?, '
-                       '4-ID4Card(?:\((\d+)\))?, 5-ElectricParts(?:\((\d+)\))?, '
-                       '6-MilitaryCircuits(?:\((\d+)\))?, ')
 ITEMLIST_REGEX = r'(?: (\d+)-[^,.]+{0}[^,.]+[,.])+'
 CRITICAL_REGEX = r'.+ attacks \d+-{0}.+and caused [\d.]+ damage, ([\d.]+)/\d+HP left'
 QUIT_SIGNAL = False
 HALT_LOOPS = False
 INV_DOING = None
 IN_LOOP = False
-INV_ITEMS = {'a': None, 'b': None, 'c': None, 'd': None}
-INV_KEEPS = (1, 10, 1, 1)
 CASTING = False
+
+INV_REGEX = r'^Your Inventory, page 1.+ \d+-{}\((\d+)\)[,.]'  # Item name need to be inserted
+INV_KEEPLIST = {"IDCard": 1, "ID4Card": 10, "ElectricParts": 1, "MilitaryCircuits": 1}
+INV_DROPLIST = {}
+INV_DEFAULT_DROP = {'CopCap': ''}
+
 
 # buffer to store last 20 received messages
 LASTLOG = deque(maxlen=20)
@@ -79,7 +80,7 @@ def on_privnotice(cli, event):
 
 
 def on_privmsg(cli, event):
-    global task, INV_DOING, HALT_LOOPS, IN_LOOP, INV_ITEMS, LASTLOG, CASTING
+    global task, INV_DOING, HALT_LOOPS, IN_LOOP, INV_DROPLIST, LASTLOG, CASTING
 
     msg = event.arguments[0].replace('\x02', '')
 
@@ -202,18 +203,15 @@ def on_privmsg(cli, event):
             cli.privmsg(config['gamebot'], "#sleep")
 
         elif msg.startswith('Your Inventory, page 1'):
-            inventory = INV_REGEX.match(msg)
 
-            if inventory:
-                items = ('IDCard', 'ID4Card', 'ElectricParts', 'MilitaryCircuits')
-
-                inventory = inventory.groups()
-
-                INV_ITEMS = {}
-                for i, j, k in zip(items, inventory, INV_KEEPS):
-                    if j is not None:
-                        j = int(j)
-                        INV_ITEMS[i] = j - k if j > k else None
+            INV_DROPLIST = dict(INV_DEFAULT_DROP)
+            for itm in INV_KEEPLIST.keys():
+                m = re.search(INV_REGEX.format(itm), msg)
+                if m is None:
+                    continue
+                num = int(m.group(1))
+                if num > INV_KEEPLIST[itm]:
+                    INV_DROPLIST[itm] = num - INV_KEEPLIST[itm]
 
         elif task == 'sleep' and MONEY_REGEX.search(msg):
 
@@ -231,11 +229,10 @@ def on_privmsg(cli, event):
                 cli.privmsg(config['gamebot'], "#use stick pushy {0:d}".format(amount))
                 time.sleep(0.5)
 
-            for i, j in INV_ITEMS.items():
-                if j is not None:
-                    cli.privmsg(config['gamebot'], "#drop {} {}".format(i, j))
+            for i, j in INV_DROPLIST.items():
+                cli.privmsg(config['gamebot'], "#drop {} {}".format(i, j))
+            INV_DROPLIST = {}
 
-            cli.privmsg(config['gamebot'], "#drop copcap")
             config['ridding_index'] = 7
 
             cli.privmsg(config['gamebot'], "#sleep")
