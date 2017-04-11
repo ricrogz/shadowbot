@@ -240,7 +240,9 @@ def on_privmsg(cli, event):
         elif msg.startswith("You meet") and len(config['say_to_folks'].strip()):
                 cli.privmsg(config['gamebot'], config['say_to_folks'])
 
-        elif msg.startswith("You are already in") or msg.startswith("You enter the"):
+        elif msg.startswith("You are already in") or \
+            msg.startswith("You enter the") or \
+                msg.startswith('You are already in Chicago_Hotel.'):
 
             if "Hotel" in msg:
                 reset_task(msg)
@@ -335,6 +337,7 @@ def goto_mission(cli, _):
 
 
 def got_to_hotel(cli, _):
+    cli.privmsg(config['gamebot'], "#i")
     cli.privmsg(config['gamebot'], "#s")
 
 
