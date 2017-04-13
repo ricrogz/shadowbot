@@ -17,6 +17,7 @@ HP_REGEX = re.compile(r'\d+-(.+?)\((.+?)/(.+?)\)')
 MP_REGEX = re.compile(r'\d+-(.+?)\((.+?)/(.+?)\)')
 WE_REGEX = re.compile(r'\d+-(.+?)\((.+?)kg/(.+?)kg\)')
 MONEY_REGEX = re.compile(r', ¥:(\d+(?:.\d+)?), ')
+MP_GAINED_REGEX = re.compile(r'MP \(([\d.]+)/[\d.]+\).$')
 ITEMLIST_REGEX = r'(?: (\d+)-[^,.]+{0}[^,.]+[,.])+'
 CRITICAL_REGEX = r'.+ attacks \d+-{0}.+and caused [\d.]+ damage, ([\d.]+)/\d+HP left'
 QUIT_SIGNAL = False
@@ -37,8 +38,8 @@ LASTLOG = deque(maxlen=20)
 FLOOD_PROTECTION = 1  # waiting secs between commands in loops
 
 authlist = set()
-enemies = []
-task = None
+ENEMIES = []
+TASK = None
 
 
 def create_connection():
@@ -80,7 +81,7 @@ def on_privnotice(cli, event):
 
 
 def on_privmsg(cli, event):
-    global task, INV_DOING, HALT_LOOPS, IN_LOOP, INV_DROPLIST, LASTLOG, CASTING
+    global TASK, INV_DOING, HALT_LOOPS, IN_LOOP, INV_DROPLIST, LASTLOG, CASTING, ENEMIES
 
     msg = event.arguments[0].replace('\x02', '')
 
@@ -190,7 +191,6 @@ def on_privmsg(cli, event):
                 or msg.endswith('but could not find anything new.') \
                 or msg.startswith('You are outside of') \
                 or msg.startswith('You continue exploring'):
-            cli.privmsg(config['gamebot'], "#i")
             cli.privmsg(config['gamebot'], "#we")
 
         elif msg.startswith('You are ready to go.'):
@@ -199,7 +199,7 @@ def on_privmsg(cli, event):
 
         elif msg.startswith('You respawn'):
             CASTING = False
-            reset_task(task)
+            reset_task(TASK)
             cli.privmsg(config['gamebot'], "#sleep")
 
         elif msg.startswith('Your Inventory, page 1'):
@@ -213,7 +213,7 @@ def on_privmsg(cli, event):
                 if num > INV_KEEPLIST[itm]:
                     INV_DROPLIST[itm] = num - INV_KEEPLIST[itm]
 
-        elif task == 'sleep' and MONEY_REGEX.search(msg):
+        elif TASK == 'sleep' and MONEY_REGEX.search(msg):
 
             reset_task('sleep')
 
@@ -246,7 +246,7 @@ def on_privmsg(cli, event):
 
             if "Hotel" in msg:
                 reset_task(msg)
-                task = 'sleep'
+                TASK = 'sleep'
                 got_to_hotel(cli, event)
             elif config['rid_mode'] == 'bank' and "Bank" in msg:
                 reset_task(msg)
@@ -268,13 +268,21 @@ def on_privmsg(cli, event):
                 and "heal on {}".format(config['nick']):
             CASTING = False
 
+        elif msg.startswith('You gained ') and len(ENEMIES) == 0:
+            m = MP_GAINED_REGEX.search(msg)
+            if m is None:  # no match
+                return
+            mpval = float(m.group(1))
+            if 15.0 <= mpval <= 20:
+                goto_destination('hotel', cli, event)
+
 
 def reset_task(msg):
-    global task
+    global TASK
 
     # Reset task
-    if task is not None and task in msg.lower():
-        task = None
+    if TASK is not None and TASK in msg.lower():
+        TASK = None
 
 
 def parse_config(cli, cfg, value, cast):
@@ -301,10 +309,10 @@ def check_auth(cli, _):
     if config['gamebot'] in authlist and config['nickserv'] in authlist:
         HALT_LOOPS = False
 
-        hira.removehandler("whoisuser", on_whoisuser_reply)
-        hira.removehandler("registerednick", on_registerednick)
+        HIRA.removehandler("whoisuser", on_whoisuser_reply)
+        HIRA.removehandler("registerednick", on_registerednick)
 
-        hira.addhandler("privmsg", on_privmsg)
+        HIRA.addhandler("privmsg", on_privmsg)
 
         make_auth()
 
@@ -312,27 +320,27 @@ def check_auth(cli, _):
 
 
 def goto_destination(destination, cli, _, forced=False):
-    global task
-    if task is None or forced:
-        task = destination.lower()
+    global TASK
+    if TASK is None or forced:
+        TASK = destination.lower()
         if config['teleport']:
             cli.privmsg(config['gamebot'], "#stop")  # required by low-level teleport
-            cli.privmsg(config['gamebot'], "#cast teleport {0}".format(task))
+            cli.privmsg(config['gamebot'], "#cast teleport {0}".format(TASK))
             cli.privmsg(config['gamebot'], "#enter")
             time.sleep(10)
         else:
-            cli.privmsg(config['gamebot'], "#goto {0}".format(task))
+            cli.privmsg(config['gamebot'], "#goto {0}".format(TASK))
         return True
     return False
 
 
 def goto_mission(cli, _):
-    global task
-    if task is None:
+    global TASK
+    if TASK is None:
         cli.privmsg(config['gamebot'], "#explore")
         return True
     else:
-        goto_destination(task, cli, None)
+        goto_destination(TASK, cli, None)
     return False
 
 
@@ -406,8 +414,8 @@ def pop_items(cli, num_items=30, start_index=None):
 
 
 def fight_start(cli, event):
-    global enemies
-    enemies = []
+    global ENEMIES
+    ENEMIES = []
     gang = event.arguments[0].replace('\x02', '')
 
     for enemy in gang.split(" ")[2:]:
@@ -422,29 +430,24 @@ def fight_start(cli, event):
                 int(enemy_num),
                 enemy
             )
-            enemies.append(item)
-    enemies.sort()
+            ENEMIES.append(item)
+    ENEMIES.sort()
     cli.privmsg(config['gamebot'], "Luchando contra:")
-    for enemy in enemies:
+    for enemy in ENEMIES:
         cli.privmsg(config['gamebot'], "    {0}".format(str(enemy)))
 
     fight_next(cli, event)
 
 
 def fight_next(cli, _):
-    global enemies
+    global ENEMIES
 
-    if len(enemies) > 5:
+    if len(ENEMIES) > 5:
         cli.privmsg(config['gamebot'], "#cast vulcano")
-    elif len(enemies):
-        enemy = enemies.pop(0)
+    elif len(ENEMIES):
+        enemy = ENEMIES.pop(0)
         cli.privmsg(config['gamebot'], "#attack {0}".format(enemy[3]))
         cli.privmsg(config['gamebot'], "#use scanner {0}".format(enemy[3]))
-    """
-    else:
-        cli.privmsg(config['gamebot'], "#we")
-        cli.privmsg(config['gamebot'], "#i")
-    """
 
 
 def heal_self(cli, _):
@@ -457,7 +460,7 @@ def heal_self(cli, _):
 
 def completer(_, state):
     """ Adapted from here: https://pymotw.com/2/readline/ """
-    global current_candidates
+    global CURRENT_CANDIDATES
 
     cities = ['redmond', 'seattle', 'renraku', 'delaware', 'trollhq', 'nysoft', 'chicago', 'vegas', ]
 
@@ -594,7 +597,7 @@ def completer(_, state):
         words = origline.split()
 
         if not words:
-            current_candidates = sorted(options.keys())
+            CURRENT_CANDIDATES = sorted(options.keys())
         else:
             try:
                 if begin == 0:
@@ -617,23 +620,23 @@ def completer(_, state):
                 if being_completed:
                     # match options with portion of input
                     # being completed
-                    current_candidates = [w for w in candidates if w.startswith(being_completed)]
+                    CURRENT_CANDIDATES = [w for w in candidates if w.startswith(being_completed)]
                 else:
                     # matching empty string so use all candidates
-                    current_candidates = candidates
+                    CURRENT_CANDIDATES = candidates
 
             except (KeyError, IndexError):
-                current_candidates = []
+                CURRENT_CANDIDATES = []
 
     try:
-        response = current_candidates[state]
+        response = CURRENT_CANDIDATES[state]
     except IndexError:
         response = None
     return response
 
 
 def process_user_input(cli, cmdline, priv=False):
-    global task, INV_DOING
+    global TASK, INV_DOING
 
     cmd, args = split_cmdline(cmdline)
     l_cmd = cmd.lower()
@@ -678,13 +681,13 @@ def process_user_input(cli, cmdline, priv=False):
             pass
 
     elif l_cmd == '$show_task':
-        if task is None:
+        if TASK is None:
             cli.privmsg(config['gamebot'], "Currently going nowhere.")
         else:
-            cli.privmsg(config['gamebot'], "Currently going to '{0}'.".format(task))
+            cli.privmsg(config['gamebot'], "Currently going to '{0}'.".format(TASK))
 
     elif l_cmd == '$reset_task':
-        task = None
+        TASK = None
         cli.privmsg(config['gamebot'], 'Destination has been reset.')
 
     elif l_cmd in ['$autoplay', '$teleport', ]:
@@ -780,13 +783,13 @@ def process_user_input(cli, cmdline, priv=False):
 
 
 def connection_check():
-    global hira, HALT_LOOPS
+    global HIRA, HALT_LOOPS
     while not QUIT_SIGNAL:
-        if not hira or not hira.connected:
+        if not HIRA or not HIRA.connected:
             HALT_LOOPS = True
-            hira = create_connection()
+            HIRA = create_connection()
             time.sleep(3)
-            hira.connect()
+            HIRA.connect()
         time.sleep(1)
 
 
@@ -806,13 +809,13 @@ if __name__ == '__main__':
 
     # Setup command completion
     # Register our completer function
-    current_candidates = []
+    CURRENT_CANDIDATES = []
     readline.set_completer_delims(' ')
     readline.set_completer(completer)
     readline.parse_and_bind('tab: complete')
 
     # Start a background thread to handle connextion
-    hira = client.IRCClient('')
+    HIRA = client.IRCClient('')
     t = threading.Thread(target=connection_check)
     t.daemon = True
     t.start()
@@ -827,10 +830,10 @@ if __name__ == '__main__':
 
             # Pass inputo to handler function (only if not empy)
             if line:
-                process_user_input(hira, line)
+                process_user_input(HIRA, line)
 
         except KeyboardInterrupt:
             print('\n\n Quitting...')
             QUIT_SIGNAL = True
-            hira.disconnect(config['msg_quit'])
+            HIRA.disconnect(config['msg_quit'])
             break
